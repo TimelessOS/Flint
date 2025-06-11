@@ -1,3 +1,4 @@
+use anyhow::Result;
 use lcas::{Store, create_store};
 use std::path::PathBuf;
 
@@ -26,14 +27,23 @@ fn get_repo_path() -> String {
     "".to_string()
 }
 
-pub fn install(artifact_name: &String) {
+pub fn install(artifact_name: &String, repo: Option<String>) -> Result<()> {
     println!("{}", get_store().repo_path);
+    Ok(())
 }
 
-pub fn repair(artifact_name: &String) {}
+pub fn repair() -> Result<()> {
+    Ok(())
+}
 
-pub fn uninstall(artifact_name: &String) {}
+pub fn uninstall(artifact_name: &String) -> Result<()> {
+    Ok(())
+}
 
-pub fn upgrade(artifact_name: &String) {}
+pub fn upgrade(artifact_name: &String) -> Result<()> {
+    Ok(())
+}
 
-pub fn update_self(artifact_name: &String) {}
+pub fn update_self() -> Result<()> {
+    Ok(())
+}

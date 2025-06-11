@@ -1,48 +1,62 @@
-use clap::Arg;
-use std::env;
+use anyhow::Result;
+use clap::{Parser, Subcommand};
+#[cfg(feature = "packager")]
+use flint::RepoCommands;
 
-use crate::installer::{install, uninstall};
+use crate::installer::{install, repair, uninstall};
 
-mod build;
 mod installer;
-mod types;
 
-fn main() {
-    let cmd = clap::Command::new("flint")
-        .bin_name("flint")
-        .styles(CLAP_STYLING)
-        .subcommand_required(true)
-        .subcommand(clap::command!("install").arg(Arg::new("package")))
-        .subcommand(
-            clap::command!("remove")
-                .arg(Arg::new("package"))
-                .alias("uninstall"),
-        )
-        .subcommand(clap::command!("repair"));
+#[derive(Parser)]
+#[clap(version)]
+#[clap(styles = CLAP_STYLING)]
+struct Args {
+    #[command(subcommand)]
+    cmd: Commands,
+}
 
-    let matches = cmd.get_matches();
+#[derive(Subcommand)]
+enum Commands {
+    /// Remove a package
+    Remove {
+        /// The name of the package to remove
+        package: String,
+    },
 
-    match matches.subcommand() {
-        Some(("install", sub_matches)) => {
-            let package = sub_matches
-                .get_one::<String>("package")
-                .expect("Package is required");
-            install(package);
-        }
-        Some(("remove", sub_matches)) => {
-            let package = sub_matches
-                .get_one::<String>("package")
-                .expect("Package is required");
-            uninstall(package);
-        }
-        Some(("repair", _sub_matches)) => {
-            // clean();
-        }
-        _ => unreachable!(),
+    /// Install a package
+    Install {
+        /// The name of the package to install
+        package: String,
+
+        /// The repo to install the package from
+        ///
+        /// This can either be a URL or a path.
+        #[clap(short, long)]
+        repo: Option<String>,
+    },
+
+    /// Repair broken packages
+    Repair {},
+    /// Interact with a Repo
+    #[cfg(feature = "packager")]
+    Repo {
+        #[command(subcommand)]
+        cmds: RepoCommands,
+    },
+}
+
+fn main() -> Result<()> {
+    let args = Args::parse();
+    match args.cmd {
+        Commands::Remove { package } => uninstall(&package),
+        Commands::Install { package, repo } => install(&package, repo),
+        Commands::Repair {} => repair(),
+        #[cfg(feature = "packager")]
+        Commands::Repo { cmds } => flint_packager::main(cmds),
     }
 }
 
-pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
+const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
     .header(clap_cargo::style::HEADER)
     .usage(clap_cargo::style::USAGE)
     .literal(clap_cargo::style::LITERAL)

@@ -1,0 +1,15 @@
+[package]
+name = "flint-packager"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+clap-cargo = { workspace = true }
+fs_extra = { workspace = true }
+lcas = { workspace = true, features = ["encoding"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tempdir = { workspace = true }
+flint-types = { workspace = true }

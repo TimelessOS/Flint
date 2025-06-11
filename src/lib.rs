@@ -1,3 +1,7 @@
-pub mod build;
-pub mod installer;
-pub mod types;
+#![warn(clippy::pedantic)]
+
+mod installer;
+
+#[cfg(feature = "packager")]
+pub use flint_packager::*;
+pub use installer::*;
