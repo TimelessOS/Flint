@@ -1,6 +1,6 @@
 use anyhow::Result;
 use lcas::{Store, create_store};
-use std::path::PathBuf;
+use std::{fs::create_dir_all, path::PathBuf};
 
 fn get_store() -> Store {
     let store = Store {
@@ -16,7 +16,13 @@ fn get_store() -> Store {
 }
 
 fn get_store_path() -> PathBuf {
-    PathBuf::new()
+    let store = dirs::data_dir().unwrap().join("flint").join("store");
+
+    if !&store.exists() {
+        create_dir_all(&store).unwrap();
+    }
+
+    store
 }
 
 fn get_cache_path() -> PathBuf {

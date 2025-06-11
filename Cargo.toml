@@ -5,15 +5,17 @@ edition = "2024"
 license = "MIT"
 
 [workspace.dependencies]
+tempdir = "0.3.7"
 anyhow = "1.0.98"
 clap = { version = "4.5.40", features = ["cargo", "derive"] }
 clap-cargo = "0.15.2"
-fs_extra = { version = "1.3.0" }
+fs_extra = "1.3.0"
 lcas = { version = "0.1.1", features = ["https"] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-tempdir = { version = "0.3.7" }
 flint-types = { path = "src/types" }
+dirs = "6.0.0"
+
 
 [dependencies]
 anyhow = { workspace = true }
@@ -23,6 +25,8 @@ fs_extra = { workspace = true }
 lcas = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+dirs = { workspace = true }
+
 flint-packager = { optional = true, path = "src/packager" }
 flint-types = { workspace = true }
 
