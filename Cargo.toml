@@ -6,7 +6,7 @@ license = "MIT"
 
 [workspace.dependencies]
 anyhow = "1.0.98"
-clap = { version = "4.5.39", features = ["cargo", "derive"] }
+clap = { version = "4.5.40", features = ["cargo", "derive"] }
 clap-cargo = "0.15.2"
 fs_extra = { version = "1.3.0" }
 lcas = { version = "0.1.1", features = ["https"] }
