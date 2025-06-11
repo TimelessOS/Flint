@@ -92,6 +92,8 @@ pub fn create_repo(repo_path: &Path) -> Result<()> {
 
 #[cfg(test)]
 mod test_packaging {
+    use std::env::current_dir;
+
     use super::*;
 
     #[test]
@@ -101,5 +103,18 @@ mod test_packaging {
                 .path()
                 .join("test"),
         )
+    }
+
+    #[test]
+    fn test_create_package_non_repo() {
+        let metadata = Metadata {
+            name: "a".to_string(),
+            description: None,
+            url: None,
+            license: None,
+            arch: None,
+        };
+
+        assert!(package(&metadata, &current_dir().unwrap(), &current_dir().unwrap()).is_err());
     }
 }
