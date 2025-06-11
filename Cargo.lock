@@ -752,9 +752,9 @@ dependencies = [
 
 [[package]]
 name = "lcas"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b125206f4dcf5f1b57f99821c74d0de45fdf457d1b543099b11cb917fea7118"
+checksum = "8ead39c849e4b721a57fedbdcf3b1f7fbdabd08f9ab24cbd3f32a9674264b177"
 dependencies = [
  "anyhow",
  "reqwest",
