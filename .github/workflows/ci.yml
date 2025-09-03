@@ -1,4 +1,4 @@
-name: Build & Test
+name: CI
 
 on:
   push:
@@ -9,7 +9,7 @@ env:
 
 jobs:
   test:
-    name: Rust
+    name: Test
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -21,4 +21,12 @@ jobs:
       - run: rustup update ${{ matrix.toolchain }} && rustup default ${{ matrix.toolchain }}
       - run: cargo build --verbose
       - run: cargo test --verbose
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: rustup update stable && rustup default stable
+      - run: rustup component add clippy
       - run: cargo clippy --verbose
