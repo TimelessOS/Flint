@@ -1,8 +1,13 @@
 use std::{fs, path::Path};
 
 use anyhow::Result;
+use ed25519_dalek::pkcs8::EncodePublicKey;
+use ed25519_dalek::pkcs8::spki::der::pem::LineEnding;
 
-use crate::chunks::{Chunk, HashKind};
+use crate::{
+    chunks::{Chunk, HashKind},
+    utils::config::get_public_key,
+};
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 struct RepoManifest {
@@ -37,6 +42,10 @@ struct Metadata {
 }
 
 pub fn create(repo_path: &Path) -> Result<()> {
+    let pem = get_public_key(None)?
+        .to_public_key_pem(LineEnding::LF)
+        .map_err(|e| anyhow::anyhow!("failed to encode public key: {e}"))?;
+
     let manifest = RepoManifest {
         edition: "2025".into(),
         hash_kind: HashKind::Blake3,
@@ -50,7 +59,7 @@ pub fn create(repo_path: &Path) -> Result<()> {
         mirrors: Vec::new(),
         updates_url: None,
         packages: Vec::new(),
-        public_key: "".into(),
+        public_key: pem,
     };
 
     let manifest_serialized = serde_yaml::to_string(&manifest)?;

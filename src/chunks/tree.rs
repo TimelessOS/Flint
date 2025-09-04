@@ -7,7 +7,7 @@ use crate::chunks::{Chunk, HashKind, hash::hash};
 pub fn save_tree(
     tree_path: &Path,
     chunk_store_path: &Path,
-    hash_kind: &HashKind,
+    hash_kind: HashKind,
 ) -> Result<Vec<Chunk>> {
     let mut chunks = Vec::new();
 
@@ -55,7 +55,7 @@ pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) ->
         if fs::hard_link(&chunk_path, &extracted_path).is_err() {
             fs::copy(&chunk_path, &extracted_path)
                 .with_context(|| "Could not copy data while extracting")?;
-        };
+        }
 
         let mut perms = fs::metadata(&extracted_path)?.permissions();
         perms.set_mode(chunk.permissions & 0o777);
@@ -66,10 +66,13 @@ pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) ->
 }
 
 /// Returns the tree's estimated size in kilobytes.
+#[must_use]
 pub fn estimate_tree_size(chunks: &[Chunk]) -> u64 {
     let mut size: u64 = 0;
 
-    chunks.iter().for_each(|chunk| size += chunk.size);
+    for chunk in chunks {
+        size += chunk.size;
+    }
 
     size
 }
@@ -102,7 +105,7 @@ mod tests {
     fn test_save_tree() -> Result<()> {
         let initial_tree_path = TempDir::new()?;
         let chunk_store_path = TempDir::new()?;
-        let hash_kind = &HashKind::Blake3;
+        let hash_kind = HashKind::Blake3;
 
         // Create example tree
         fs::write(initial_tree_path.path().join("file"), "Example")?;
@@ -121,8 +124,7 @@ mod tests {
                 .join(get_chunk_filename(&chunk.hash, chunk.permissions));
             assert!(
                 chunk_path.exists(),
-                "Chunk file does not exist: {:?}",
-                chunk_path
+                "Chunk file does not exist: {chunk_path:?}"
             );
         }
 
@@ -146,7 +148,7 @@ mod tests {
         let initial_tree_path = TempDir::new()?;
         let loaded_tree_path = TempDir::new()?;
         let chunk_store_path = TempDir::new()?;
-        let hash_kind = &HashKind::Blake3;
+        let hash_kind = HashKind::Blake3;
 
         // Create example tree
         fs::write(initial_tree_path.path().join("file"), "Example")?;
@@ -175,7 +177,7 @@ mod tests {
         let initial_tree_path = TempDir::new()?;
         let loaded_tree_path = TempDir::new()?;
         let chunk_store_path = TempDir::new()?;
-        let hash_kind = &HashKind::Blake3;
+        let hash_kind = HashKind::Blake3;
 
         // Create example tree
         let file_path = initial_tree_path.path().join("file");
@@ -211,7 +213,7 @@ mod tests {
     fn test_tree_size() -> Result<()> {
         let initial_tree_path = TempDir::new()?;
         let chunk_store_path = TempDir::new()?;
-        let hash_kind = &HashKind::Blake3;
+        let hash_kind = HashKind::Blake3;
 
         let kb1 = vec![0; 1024];
         let kb4 = vec![0; 4096];

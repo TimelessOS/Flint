@@ -1,6 +1,11 @@
 [package]
 name = "flint"
 version = "0.1.0"
+description = "The universal package manager"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/TimelessOS/Flint"
+keywords = ["cli", "package-manager", "installer", "software-delivery"]
+categories = ["command-line-utilities"]
 edition = "2024"
 
 [dependencies]
@@ -8,7 +13,12 @@ anyhow = "1.0.99"
 blake3 = { version = "1.8.2", features = ["digest"] }
 clap = "4.5.47"
 directories = "6.0.0"
-ed25519-dalek = { version = "=3.0.0-pre.0", features = ["pem", "pkcs8", "rand_core", "signature"] }
+ed25519-dalek = { version = "=3.0.0-pre.0", features = [
+    "pem",
+    "pkcs8",
+    "rand_core",
+    "signature",
+] }
 futures = "0.3.31"
 hex = "0.4.3"
 rand_core = { version = "0.9.3", features = ["os_rng"] }
@@ -18,3 +28,19 @@ serde_yaml = "0.9.34"
 tar = "0.4.44"
 temp-dir = "0.1.16"
 walkdir = "2.5.0"
+
+[lints.rust]
+unsafe_code = "forbid"
+unused_imports = "deny"
+
+
+[lints.clippy]
+all = "deny"
+correctness = "deny"
+suspicious = "deny"
+perf = "deny"
+complexity = "deny"
+style = "warn"
+# cargo = "deny" # Temporarily disabled because we use a prerelease version of ed25519, and blake3 is not using the same deps.
+pedantic = "warn"
+nursery = "warn"
