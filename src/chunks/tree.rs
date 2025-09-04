@@ -4,6 +4,11 @@ use walkdir::WalkDir;
 
 use crate::chunks::{Chunk, HashKind, hash::hash};
 
+/// Turns a filesystem tree into a list of chunks
+///
+/// # Errors
+///
+/// - Filesystem out of space (Very likely)
 pub fn save_tree(
     tree_path: &Path,
     chunk_store_path: &Path,
@@ -24,11 +29,10 @@ pub fn save_tree(
         let hash = hash(hash_kind, &contents);
         let mode = file.metadata()?.permissions().mode() & 0o777;
 
-        // TODO: Make this hardlink if on the same filesystem.
-        fs::write(
-            chunk_store_path.join(get_chunk_filename(&hash, mode)),
-            contents,
-        )?;
+        let chunk_path = &chunk_store_path.join(get_chunk_filename(&hash, mode));
+        if fs::hard_link(file.path(), chunk_path).is_err() {
+            fs::write(chunk_path, contents)?;
+        }
 
         chunks.push(Chunk {
             hash,
@@ -41,7 +45,11 @@ pub fn save_tree(
     Ok(chunks)
 }
 
-/// Turns a tree into a list of chunks
+/// Turns a list of chunks into a filesystem tree
+///
+/// # Errors
+///
+/// - Filesystem out of space (Very likely)
 pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) -> Result<()> {
     for chunk in chunks {
         let extracted_path = load_path.join(&chunk.path);

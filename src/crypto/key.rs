@@ -24,8 +24,10 @@ pub fn get_private_key(config_path: Option<&Path>) -> Result<SigningKey> {
     }
 
     if !path.exists() {
-        let new_key = generate_private_key();
-        let pem = new_key
+        let mut csprng = OsRng.unwrap_err();
+        let signing_key = SigningKey::generate(&mut csprng);
+
+        let pem = signing_key
             .to_pkcs8_pem(LineEnding::LF)
             .map_err(|e| anyhow::anyhow!("failed to encode private key: {e}"))?;
         fs::write(&path, pem)?;
@@ -40,11 +42,6 @@ pub fn get_private_key(config_path: Option<&Path>) -> Result<SigningKey> {
         .map_err(|e| anyhow::anyhow!("failed to decode private key: {e}"))?;
 
     Ok(key)
-}
-
-fn generate_private_key() -> SigningKey {
-    let mut csprng = OsRng.unwrap_err();
-    SigningKey::generate(&mut csprng)
 }
 
 fn unwrap_config_path(config_path: Option<&Path>) -> Result<PathBuf> {
