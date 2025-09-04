@@ -13,4 +13,5 @@ reqwest = "0.12.23"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.34"
 tar = "0.4.44"
+temp-dir = "0.1.16"
 walkdir = "2.5.0"
