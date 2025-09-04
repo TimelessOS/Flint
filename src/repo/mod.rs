@@ -109,6 +109,12 @@ pub fn read_manifest_signed(repo_path: &Path, public_key_serialized: &str) -> Re
 
 /// Replaces the existing manifest with another one
 /// Verifies that it is correct
+///
+/// # Errors
+///
+/// - Invalid Signature
+/// - Filesystem error when updating (Out of space, Permissions)
+/// - New manifest is invalid
 pub fn update_manifest(
     repo_path: &Path,
     new_manifest_serialized: &str,
@@ -214,7 +220,7 @@ mod tests {
         let old_manifest = read_manifest_unsigned(repo_path).unwrap();
 
         // Build a new manifest with small change
-        let mut new_manifest = old_manifest.clone();
+        let mut new_manifest = old_manifest;
         new_manifest.metadata.name = Some("NewName".into());
 
         let serialized = serde_yaml::to_string(&new_manifest).unwrap();
