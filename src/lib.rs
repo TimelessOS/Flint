@@ -1,3 +1,4 @@
+pub mod build;
 pub mod bundle;
 pub mod chunks;
 mod crypto;

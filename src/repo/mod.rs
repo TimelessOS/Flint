@@ -30,7 +30,7 @@ pub struct PackageManifest {
 /// All of these are user visible, and should carry no actual weight.
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
 pub struct Metadata {
-    pub name: Option<String>,
+    pub title: Option<String>,
     pub description: Option<String>,
     pub homepage_url: Option<String>,
     /// User visible, not actually used to compare versions
@@ -55,7 +55,7 @@ pub fn create(repo_path: &Path) -> Result<()> {
         edition: "2025".into(),
         hash_kind: HashKind::Blake3,
         metadata: Metadata {
-            name: None,
+            title: None,
             description: None,
             homepage_url: None,
             version: None,
@@ -221,7 +221,7 @@ mod tests {
 
         // Build a new manifest with small change
         let mut new_manifest = old_manifest;
-        new_manifest.metadata.name = Some("NewName".into());
+        new_manifest.metadata.title = Some("NewName".into());
 
         let serialized = serde_yaml::to_string(&new_manifest).unwrap();
 
@@ -232,7 +232,7 @@ mod tests {
         update_manifest(repo_path, &serialized, &signature.to_bytes()).unwrap();
 
         let updated = read_manifest_unsigned(repo_path).unwrap();
-        assert_eq!(updated.metadata.name, Some("NewName".into()));
+        assert_eq!(updated.metadata.title, Some("NewName".into()));
 
         // Now try with invalid signature
         let bad_sig = b"garbage_signature";
