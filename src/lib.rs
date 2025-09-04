@@ -1,6 +1,6 @@
-mod bundle;
-mod chunks;
+pub mod bundle;
+pub mod chunks;
 mod crypto;
-mod network;
-mod repo;
+pub mod network;
+pub mod repo;
 mod utils;
