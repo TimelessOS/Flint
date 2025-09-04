@@ -109,6 +109,7 @@ fn main() -> Result<()> {
     match args.command {
         Command::Repo { command } => match command {
             RepoCommands::Create { repo_name } => repo::create(&path.join(repo_name))?,
+
             RepoCommands::List => {
                 let mut table = Table::new();
 
@@ -142,11 +143,14 @@ fn main() -> Result<()> {
 
                 println!("{table}");
             }
+
             RepoCommands::Add {
                 repo_name,
                 remote_url,
             } => todo!(),
+
             RepoCommands::Remove { repo_name } => todo!(),
+
             RepoCommands::Update {
                 homepage_url,
                 license,
@@ -172,10 +176,15 @@ fn main() -> Result<()> {
                 update_manifest(repo_path, manifest_serialized, &signature.to_bytes())?;
             }
         },
+
         Command::Build => todo!(),
+
         Command::Install => todo!(),
+
         Command::Remove => todo!(),
+
         Command::Bundle { command } => todo!(),
+
         Command::Update => todo!(),
     };
 
