@@ -1,5 +1,9 @@
 use anyhow::{Context, Result};
-use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+use std::{
+    fs,
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+};
 use walkdir::WalkDir;
 
 use crate::chunks::{Chunk, HashKind, hash::hash};
@@ -9,6 +13,10 @@ use crate::chunks::{Chunk, HashKind, hash::hash};
 /// # Errors
 ///
 /// - Filesystem out of space (Very likely)
+///
+/// # Panics
+///
+/// - If `tree_path` points to a file, but the file somehow has no parent (eg: is root), then this will panic because there is no way that can be handled.
 pub fn save_tree(
     tree_path: &Path,
     chunk_store_path: &Path,
@@ -16,25 +24,19 @@ pub fn save_tree(
 ) -> Result<Vec<Chunk>> {
     let mut chunks = Vec::new();
 
-    for entry in WalkDir::new(tree_path) {
-        let file = entry?;
+    if !chunk_store_path.exists() {
+        fs::create_dir_all(chunk_store_path)?;
+    }
 
-        if !file.file_type().is_file() {
-            continue;
-        }
-
-        let path = file.path().strip_prefix(tree_path)?.to_path_buf();
-        let contents = fs::read(file.path())?;
+    if tree_path.is_file() {
+        let path: PathBuf = tree_path.file_name().unwrap().into();
+        let contents = fs::read(tree_path)?;
         let size = (contents.len() as u64) / 1024;
         let hash = hash(hash_kind, &contents);
-        let mode = file.metadata()?.permissions().mode() & 0o777;
-
-        if !chunk_store_path.exists() {
-            fs::create_dir_all(chunk_store_path)?;
-        }
+        let mode = fs::metadata(tree_path)?.permissions().mode() & 0o777;
 
         let chunk_path = &chunk_store_path.join(get_chunk_filename(&hash, mode));
-        if fs::hard_link(file.path(), chunk_path).is_err() {
+        if fs::hard_link(tree_path, chunk_path).is_err() {
             fs::write(chunk_path, contents)?;
         }
 
@@ -44,6 +46,32 @@ pub fn save_tree(
             size,
             permissions: mode,
         });
+    } else {
+        for entry in WalkDir::new(tree_path) {
+            let file = entry?;
+
+            if !file.file_type().is_file() {
+                continue;
+            }
+
+            let path = file.path().strip_prefix(tree_path)?.to_path_buf();
+            let contents = fs::read(file.path())?;
+            let size = (contents.len() as u64) / 1024;
+            let hash = hash(hash_kind, &contents);
+            let mode = file.metadata()?.permissions().mode() & 0o777;
+
+            let chunk_path = &chunk_store_path.join(get_chunk_filename(&hash, mode));
+            if fs::hard_link(file.path(), chunk_path).is_err() {
+                fs::write(chunk_path, contents)?;
+            }
+
+            chunks.push(Chunk {
+                hash,
+                path,
+                size,
+                permissions: mode,
+            });
+        }
     }
 
     Ok(chunks)
