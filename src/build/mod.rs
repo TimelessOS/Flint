@@ -1,12 +1,13 @@
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use std::{
     fs,
     path::{Path, PathBuf},
+    process::Command,
 };
 
 use crate::{
     chunks::save_tree,
-    repo::{self, Metadata, PackageManifest, insert_package},
+    repo::{self, Metadata, PackageManifest, insert_package, remove_package},
 };
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -23,8 +24,18 @@ struct BuildManifest {
     commands: Vec<String>,
     /// Directory relative to the manifest
     directory: PathBuf,
+    /// Edition
+    edition: String,
+    /// Script to be run before packaging
+    build_script: Option<PathBuf>,
 }
 
+/// Builds and inserts a package into a Repository from a `build_manifest`
+///
+/// # Errors
+///
+/// - Filesystem (Out of Space, Permissions)
+/// - Build Script Failure
 pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageManifest> {
     let build_manifest_path = &build_manifest_path.canonicalize()?;
 
@@ -37,6 +48,18 @@ pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageMani
     let build_manifest_parent = &build_manifest_path
         .parent()
         .unwrap_or_else(|| Path::new("/"));
+
+    if let Some(script) = build_manifest.build_script {
+        let result = Command::new("sh")
+            .arg("-c")
+            .arg(build_manifest_parent.join(script))
+            .current_dir(build_manifest_parent)
+            .status()?;
+
+        if !result.success() {
+            bail!("Build script failed.")
+        }
+    }
 
     let chunks = save_tree(
         &build_manifest_parent.join(build_manifest.directory),
@@ -52,6 +75,7 @@ pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageMani
         chunks,
     };
 
+    let _ = remove_package(&package_manifest.id, repo_path);
     insert_package(&package_manifest, repo_path)?;
 
     Ok(package_manifest)
