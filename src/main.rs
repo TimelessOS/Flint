@@ -69,6 +69,8 @@ enum RepoCommands {
         license: Option<String>,
         #[arg(long)]
         title: Option<String>,
+        #[arg(long)]
+        version: Option<String>,
 
         repo_name: String,
     },
@@ -120,24 +122,24 @@ fn main() -> Result<()> {
                     "Hash Kind",
                     "Homepage",
                     "License",
+                    "Version",
                 ]);
 
                 for repo_entry in fs::read_dir(path)? {
                     let repo_dir = repo_entry?;
                     let repo_name = repo_dir.file_name();
                     let repo_name_str = repo_name.to_str().unwrap();
-                    println!("Reading {repo_name_str}");
-                    let repo = repo::read_manifest_unsigned(&repo_dir.path())?;
 
-                    let title = repo.metadata.title.unwrap_or_default();
+                    let repo = repo::read_manifest_unsigned(&repo_dir.path())?;
 
                     table.add_row(vec![
                         &repo_name_str,
-                        title.as_str(),
+                        repo.metadata.title.unwrap_or_default().as_str(),
                         &repo.updates_url.unwrap_or_default(),
                         &repo.hash_kind.to_string(),
                         &repo.metadata.homepage_url.unwrap_or_default(),
                         &repo.metadata.license.unwrap_or_default(),
+                        &repo.metadata.version.unwrap_or_default(),
                     ]);
                 }
 
@@ -155,6 +157,7 @@ fn main() -> Result<()> {
                 homepage_url,
                 license,
                 title,
+                version,
                 repo_name,
             } => {
                 let repo_path = &path.join(repo_name);
@@ -168,6 +171,9 @@ fn main() -> Result<()> {
                 }
                 if license.is_some() {
                     repo.metadata.license = license;
+                }
+                if version.is_some() {
+                    repo.metadata.version = version;
                 }
 
                 let manifest_serialized = &serde_yaml::to_string(&repo)?;
