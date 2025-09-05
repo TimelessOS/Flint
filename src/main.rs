@@ -130,7 +130,7 @@ fn main() -> Result<()> {
                     let repo_name = repo_dir.file_name();
                     let repo_name_str = repo_name.to_str().unwrap();
 
-                    let repo = repo::read_manifest_unsigned(&repo_dir.path())?;
+                    let repo = repo::read_manifest(&repo_dir.path())?;
 
                     table.add_row(vec![
                         &repo_name_str,
@@ -161,7 +161,7 @@ fn main() -> Result<()> {
                 repo_name,
             } => {
                 let repo_path = &path.join(repo_name);
-                let mut repo = repo::read_manifest_unsigned(repo_path)?;
+                let mut repo = repo::read_manifest(repo_path)?;
 
                 if title.is_some() {
                     repo.metadata.title = title;

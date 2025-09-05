@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_and_read_unsigned() {
+    fn test_create_and_read() {
         let tmp = TempDir::new().unwrap();
         let repo_path = tmp.path();
 
@@ -178,7 +178,7 @@ mod tests {
         create(repo_path).unwrap();
 
         // Read unsigned manifest
-        let manifest = read_manifest_unsigned(repo_path).unwrap();
+        let manifest = read_manifest(repo_path).unwrap();
         assert_eq!(manifest.edition, "2025");
         assert!(manifest.public_key.len() > 10);
         assert!(manifest.packages.is_empty());
@@ -186,18 +186,6 @@ mod tests {
         // Should have manifest.yml + .sig
         assert!(repo_path.join("manifest.yml").exists());
         assert!(repo_path.join("manifest.yml.sig").exists());
-    }
-
-    #[test]
-    fn test_read_signed_manifest() {
-        let tmp = TempDir::new().unwrap();
-        let repo_path = tmp.path();
-        create(repo_path).unwrap();
-
-        let manifest = read_manifest_unsigned(repo_path).unwrap();
-        let manifest_signed = read_manifest_signed(repo_path, &manifest.public_key).unwrap();
-
-        assert_eq!(manifest.edition, manifest_signed.edition);
     }
 
     #[test]
@@ -211,8 +199,7 @@ mod tests {
         contents.push_str("\n# sneaky hacker change");
         fs::write(repo_path.join("manifest.yml"), contents)?;
 
-        let manifest = read_manifest_unsigned(repo_path)?;
-        let result = read_manifest_signed(repo_path, &manifest.public_key);
+        let result = read_manifest(repo_path);
 
         assert!(
             result.is_err(),
@@ -220,34 +207,5 @@ mod tests {
         );
 
         Ok(())
-    }
-
-    #[test]
-    fn test_update_manifest_valid_and_invalid() {
-        let tmp = TempDir::new().unwrap();
-        let repo_path = tmp.path();
-        create(repo_path).unwrap();
-
-        let old_manifest = read_manifest_unsigned(repo_path).unwrap();
-
-        // Build a new manifest with small change
-        let mut new_manifest = old_manifest;
-        new_manifest.metadata.title = Some("NewName".into());
-
-        let serialized = serde_yaml::to_string(&new_manifest).unwrap();
-
-        // Sign it with the right key
-        let signature = sign(repo_path, &serialized).unwrap();
-
-        // Update should succeed
-        update_manifest(repo_path, &serialized, &signature.to_bytes()).unwrap();
-
-        let updated = read_manifest_unsigned(repo_path).unwrap();
-        assert_eq!(updated.metadata.title, Some("NewName".into()));
-
-        // Now try with invalid signature
-        let bad_sig = b"garbage_signature";
-        let result = update_manifest(repo_path, &serialized, bad_sig);
-        assert!(result.is_err());
     }
 }

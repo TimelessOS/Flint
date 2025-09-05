@@ -7,18 +7,6 @@ use crate::{
     repo::RepoManifest,
 };
 
-/// Reads a manifest without verifying. This is best for AFTER it has been downloaded.
-///
-/// # Errors
-///
-/// - Filesystem errors (Permissions or doesn't exist)
-pub fn read_manifest_unsigned(repo_path: &Path) -> Result<RepoManifest> {
-    let manifest_serialized = fs::read_to_string(repo_path.join("manifest.yml"))?;
-    let manifest = serde_yaml::from_str(&manifest_serialized)?;
-
-    Ok(manifest)
-}
-
 /// Reads a manifest and verifys it from the EXISTING key. This is best for GENERAL reading.
 ///
 /// # Warning
@@ -42,6 +30,14 @@ pub fn read_manifest(repo_path: &Path) -> Result<RepoManifest> {
     Ok(manifest)
 }
 
+fn read_manifest_unsigned(repo_path: &Path) -> Result<RepoManifest> {
+    let manifest_serialized = fs::read_to_string(repo_path.join("manifest.yml"))?;
+
+    let manifest: RepoManifest = serde_yaml::from_str(&manifest_serialized)?;
+
+    Ok(manifest)
+}
+
 /// Reads a manifest and verifys it. This is best for WHEN it has been downloaded.
 ///
 /// # Errors
@@ -62,8 +58,7 @@ pub fn read_manifest_signed(repo_path: &Path, public_key_serialized: &str) -> Re
     Ok(manifest)
 }
 
-/// Replaces the existing manifest with another one
-/// Verifies that it is correct
+/// Replaces the existing manifest with another one, and verifies that it is correct
 ///
 /// # Errors
 ///
@@ -98,11 +93,79 @@ pub fn update_manifest(
     Ok(())
 }
 
-fn atomic_replace(repo_path: &Path, filename: &str, contents: &[u8]) -> Result<()> {
-    let new_path = &repo_path.join(filename.to_owned() + ".new");
+fn atomic_replace(base_path: &Path, filename: &str, contents: &[u8]) -> Result<()> {
+    let new_path = &base_path.join(filename.to_owned() + ".new");
 
     fs::write(new_path, contents)?;
-    fs::rename(new_path, repo_path.join(filename))?;
+    fs::rename(new_path, base_path.join(filename))?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use temp_dir::TempDir;
+
+    use crate::{crypto::signing::sign, repo::create};
+
+    use super::*;
+
+    #[test]
+    fn test_atomic_replace_basic() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        fs::write(temp_dir.path().join("file"), "previous_contents")?;
+        atomic_replace(temp_dir.path(), "file", b"new_contents")?;
+
+        assert_eq!(
+            fs::read_to_string(temp_dir.path().join("file"))?,
+            "new_contents"
+        );
+        assert!(!temp_dir.path().join("file.new").exists());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_update_manifest_valid_and_invalid() -> Result<()> {
+        let repo = TempDir::new()?;
+        let repo_path = repo.path();
+        create(repo_path)?;
+
+        let old_manifest = read_manifest(repo_path)?;
+
+        // Build a new manifest with small change
+        let mut new_manifest = old_manifest;
+        new_manifest.metadata.title = Some("NewName".into());
+
+        let serialized = serde_yaml::to_string(&new_manifest)?;
+
+        // Sign it with the right key
+        let signature = sign(repo_path, &serialized)?;
+
+        // Update should succeed
+        update_manifest(repo_path, &serialized, &signature.to_bytes())?;
+
+        let updated = read_manifest(repo_path)?;
+        assert_eq!(updated.metadata.title, Some("NewName".into()));
+
+        // Now try with invalid signature
+        let bad_signature = b"garbage_signature";
+        assert!(update_manifest(repo_path, &serialized, bad_signature).is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_read_signed_manifest() -> Result<()> {
+        let repo = TempDir::new()?;
+        let repo_path = repo.path();
+        create(repo_path)?;
+
+        let manifest = read_manifest(repo_path)?;
+        let manifest_signed = read_manifest_signed(repo_path, &manifest.public_key)?;
+
+        assert_eq!(manifest.edition, manifest_signed.edition);
+
+        Ok(())
+    }
 }
