@@ -29,6 +29,10 @@ pub fn save_tree(
         let hash = hash(hash_kind, &contents);
         let mode = file.metadata()?.permissions().mode() & 0o777;
 
+        if !chunk_store_path.exists() {
+            fs::create_dir_all(chunk_store_path)?;
+        }
+
         let chunk_path = &chunk_store_path.join(get_chunk_filename(&hash, mode));
         if fs::hard_link(file.path(), chunk_path).is_err() {
             fs::write(chunk_path, contents)?;

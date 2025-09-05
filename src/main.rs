@@ -1,8 +1,14 @@
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 use comfy_table::Table;
-use flint::repo::{self, update_manifest};
-use std::{fs, path::Path};
+use flint::{
+    build::build,
+    repo::{self, update_manifest},
+};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
 
 use crate::{crypto::signing::sign, utils::config::get_repos_dir};
 
@@ -34,7 +40,10 @@ enum Command {
         command: RepoCommands,
     },
     /// Builds a package from a local manifest and directory
-    Build,
+    Build {
+        build_manifest_path: PathBuf,
+        repo_name: String,
+    },
     /// Install a package
     Install,
     /// Remove a package
@@ -151,7 +160,9 @@ fn main() -> Result<()> {
                 remote_url,
             } => todo!(),
 
-            RepoCommands::Remove { repo_name } => todo!(),
+            RepoCommands::Remove { repo_name } => {
+                fs::remove_dir_all(path.join(repo_name))?;
+            }
 
             RepoCommands::Update {
                 homepage_url,
@@ -183,7 +194,12 @@ fn main() -> Result<()> {
             }
         },
 
-        Command::Build => todo!(),
+        Command::Build {
+            build_manifest_path,
+            repo_name,
+        } => {
+            build(&build_manifest_path, &path.join(repo_name))?;
+        }
 
         Command::Install => todo!(),
 

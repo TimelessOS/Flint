@@ -1,0 +1,11 @@
+id: "example_package"
+aliases: ["example"]
+
+metadata:
+  name: "Example Package"
+  description: "This is an example package. It should include the entire Flint source Repository."
+  license: "MIT or APACHE-2.0"
+  homepage_url: "https://github.com/TimelessOS/Flint"
+  # This package does not have a version.
+
+directory: src
