@@ -1,43 +1,15 @@
+use anyhow::{Result, bail};
 use std::fs::create_dir_all;
 use std::{fs, path::Path};
 
-use anyhow::{Result, bail};
+use crate::chunks::HashKind;
+use crate::crypto::key::{get_public_key, serialize_verifying_key};
+use crate::crypto::signing::sign;
 
-use crate::chunks::{Chunk, HashKind};
-use crate::crypto::key::{deserialize_verifying_key, get_public_key, serialize_verifying_key};
-use crate::crypto::signing::{sign, verify_signature};
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-pub struct RepoManifest {
-    pub metadata: Metadata,
-    pub packages: Vec<PackageManifest>,
-    pub updates_url: Option<String>,
-    pub public_key: String,
-    pub mirrors: Vec<String>,
-    edition: String,
-    pub hash_kind: HashKind,
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-pub struct PackageManifest {
-    pub metadata: Metadata,
-    pub id: String,
-    pub aliases: Vec<String>,
-    pub chunks: Vec<Chunk>,
-    pub commands: Vec<String>,
-}
-
-/// All of these are user visible, and should carry no actual weight.
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
-pub struct Metadata {
-    pub title: Option<String>,
-    pub description: Option<String>,
-    pub homepage_url: Option<String>,
-    /// User visible, not actually used to compare versions
-    pub version: Option<String>,
-    /// SPDX Identifier
-    pub license: Option<String>,
-}
+mod manifest;
+mod manifest_io;
+pub use manifest::*;
+pub use manifest_io::*;
 
 /// Creates a repository at `repo_path`
 ///
@@ -75,80 +47,86 @@ pub fn create(repo_path: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Reads a manifest without verifying. This is best for AFTER it has been downloaded.
+/// Inserts a package into a local repository.
 ///
 /// # Errors
-///
-/// - Filesystem errors (Permissions or doesn't exist)
-pub fn read_manifest_unsigned(repo_path: &Path) -> Result<RepoManifest> {
-    let manifest_serialized = fs::read_to_string(repo_path.join("manifest.yml"))?;
-    let manifest = serde_yaml::from_str(&manifest_serialized)?;
+/// - Repo not signed with local signature
+pub fn insert_package(package_manifest: &PackageManifest, repo_path: &Path) -> Result<()> {
+    let mut repo_manifest = read_manifest(repo_path)?;
 
-    Ok(manifest)
-}
+    let mut packages: Vec<PackageManifest> = repo_manifest
+        .packages
+        .iter()
+        .filter(|package| package.id == package_manifest.id)
+        .cloned()
+        .collect();
 
-/// Reads a manifest and verifys it. This is best for WHEN it has been downloaded.
-///
-/// # Errors
-///
-/// - Filesystem errors (Permissions or doesn't exist)
-/// - Invalid signature
-pub fn read_manifest_signed(repo_path: &Path, public_key_serialized: &str) -> Result<RepoManifest> {
-    let manifest_serialized = fs::read_to_string(repo_path.join("manifest.yml"))?;
-    let manifest_signature_serialized = fs::read(repo_path.join("manifest.yml.sig"))?;
+    for package in &packages {
+        if package.aliases.contains(&package_manifest.id) {
+            bail!(
+                "A package in this repo has an alias with that package id already: {}",
+                package.id
+            )
+        }
+        for alias in &package_manifest.aliases {
+            if &package.id == alias || package.aliases.contains(alias) {
+                bail!(
+                    "A package in this repo has an alias with that package id already: {}",
+                    package.id
+                )
+            }
+        }
+    }
 
-    verify_signature(
-        &manifest_serialized,
-        &manifest_signature_serialized,
-        deserialize_verifying_key(public_key_serialized)?,
-    )?;
+    packages.push(package_manifest.clone());
+    repo_manifest.packages = packages;
 
-    let manifest = serde_yaml::from_str(&manifest_serialized)?;
-    Ok(manifest)
-}
+    let repo_manifest_serialized = serde_yaml::to_string(&repo_manifest)?;
 
-/// Replaces the existing manifest with another one
-/// Verifies that it is correct
-///
-/// # Errors
-///
-/// - Invalid Signature
-/// - Filesystem error when updating (Out of space, Permissions)
-/// - New manifest is invalid
-pub fn update_manifest(
-    repo_path: &Path,
-    new_manifest_serialized: &str,
-    signature: &[u8],
-) -> Result<()> {
-    let old_manifest = read_manifest_unsigned(repo_path)?;
-
-    // VERIFY. IMPORTANT.
-    verify_signature(
-        new_manifest_serialized,
-        signature,
-        deserialize_verifying_key(&old_manifest.public_key)?,
-    )?;
-
-    // Make sure it actually deserializes
-    let _: RepoManifest = serde_yaml::from_str(new_manifest_serialized)?;
-
-    // Write to a .new, and then rename atomically
-    fs::write(repo_path.join("manifest.yml.new"), new_manifest_serialized)?;
-    fs::write(
-        repo_path.join("manifest.yml.sig.new"),
-        new_manifest_serialized,
-    )?;
-
-    fs::rename(
-        repo_path.join("manifest.yml.new"),
-        repo_path.join("manifest.yml"),
-    )?;
-    fs::rename(
-        repo_path.join("manifest.yml.sig.new"),
-        repo_path.join("manifest.yml.sig"),
-    )?;
+    let signature = sign(repo_path, &repo_manifest_serialized)?;
+    update_manifest(repo_path, &repo_manifest_serialized, &signature.to_bytes())?;
 
     Ok(())
+}
+
+/// Removes a package from a local repository.
+///
+/// # Errors
+/// - Repo not signed with local signature
+/// - Filesystem errors
+pub fn remove_package(package_id: &str, repo_path: &Path) -> Result<()> {
+    let mut repo_manifest = read_manifest(repo_path)?;
+
+    repo_manifest
+        .packages
+        .retain(|package| package.id != package_id);
+
+    let repo_manifest_serialized = serde_yaml::to_string(&repo_manifest)?;
+
+    let signature = sign(repo_path, &repo_manifest_serialized)?;
+    update_manifest(repo_path, &repo_manifest_serialized, &signature.to_bytes())?;
+
+    Ok(())
+}
+
+/// Gets a package manifest from a repository.
+///
+/// # Errors
+///
+/// - Filesystem errors (Permissions most likely)
+/// - Repository doesn't exist
+/// - ID doesn't exist inside the Repository
+pub fn get_package(repo_path: &Path, id: &str) -> Result<PackageManifest> {
+    let repo_manifest = read_manifest(repo_path)?;
+
+    // Check ID's and aliases
+    for package in repo_manifest.packages {
+        if package.id == id || package.aliases.contains(&id.to_string()) {
+            return Ok(package);
+        }
+    }
+
+    bail!("No package found in Repository.");
 }
 
 #[cfg(test)]
@@ -156,7 +134,40 @@ mod tests {
     use temp_dir::TempDir;
 
     use super::*;
-    use std::fs;
+
+    #[test]
+    fn insert_and_get_and_remove_package() -> Result<()> {
+        // Create repo
+        let repo = TempDir::new()?;
+        let repo_path = repo.path();
+        create(repo_path)?;
+
+        // Make sure errors on no package
+        assert!(get_package(repo_path, "test").is_err());
+
+        let package_manifest = PackageManifest {
+            aliases: vec!["example_alias".into()],
+            id: "test".into(),
+            chunks: vec![],
+            commands: vec![],
+            metadata: Metadata {
+                title: None,
+                description: None,
+                homepage_url: None,
+                version: None,
+                license: None,
+            },
+        };
+
+        insert_package(&package_manifest, repo_path)?;
+        assert!(get_package(repo_path, "test").is_ok());
+        assert!(insert_package(&package_manifest, repo_path).is_err());
+
+        remove_package(&package_manifest.id, repo_path)?;
+        assert!(get_package(repo_path, "test").is_err());
+
+        Ok(())
+    }
 
     #[test]
     fn test_create_and_read_unsigned() {
