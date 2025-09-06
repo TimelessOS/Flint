@@ -1,9 +1,10 @@
-use anyhow::Result;
+use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use comfy_table::Table;
 use flint::{
     build::build,
-    repo::{self, update_manifest},
+    repo::{self, get_package, update_manifest},
+    run::{install, start},
 };
 use std::{
     fs,
@@ -18,7 +19,6 @@ mod utils;
 /// Simple program to greet a person
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
-#[command(styles = CLAP_STYLING)]
 struct Args {
     /// Install system-wide (requires root)
     #[arg(long, conflicts_with = "user")]
@@ -45,9 +45,18 @@ enum Command {
         repo_name: String,
     },
     /// Install a package
-    Install,
+    Install {
+        /// The Repository to install from
+        #[arg(long)]
+        repo_name: Option<String>,
+        /// The package to install
+        package: String,
+    },
     /// Remove a package
-    Remove,
+    Remove {
+        repo_name: Option<String>,
+        package: String,
+    },
     /// Interact with bundles
     Bundle {
         #[command(subcommand)]
@@ -55,6 +64,18 @@ enum Command {
     },
     /// Updates a repository and its packages
     Update,
+    /// Run a package's entrypoint
+    Run {
+        /// The Repository the package is in
+        #[arg(long)]
+        repo_name: Option<String>,
+        /// The package to install
+        package: String,
+        /// The entrypoint in question. Will default to the first entrypoint
+        entrypoint: Option<String>,
+        /// Extra arguments
+        args: Option<Vec<String>>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -118,81 +139,7 @@ fn main() -> Result<()> {
     };
 
     match args.command {
-        Command::Repo { command } => match command {
-            RepoCommands::Create { repo_name } => repo::create(&path.join(repo_name))?,
-
-            RepoCommands::List => {
-                let mut table = Table::new();
-
-                table.set_header(vec![
-                    "Name",
-                    "Title",
-                    "URL",
-                    "Hash Kind",
-                    "Homepage",
-                    "License",
-                    "Version",
-                ]);
-
-                for repo_entry in fs::read_dir(path)? {
-                    let repo_dir = repo_entry?;
-                    let repo_name = repo_dir.file_name();
-                    let repo_name_str = repo_name.to_str().unwrap();
-
-                    let repo = repo::read_manifest(&repo_dir.path())?;
-
-                    table.add_row(vec![
-                        &repo_name_str,
-                        repo.metadata.title.unwrap_or_default().as_str(),
-                        &repo.updates_url.unwrap_or_default(),
-                        &repo.hash_kind.to_string(),
-                        &repo.metadata.homepage_url.unwrap_or_default(),
-                        &repo.metadata.license.unwrap_or_default(),
-                        &repo.metadata.version.unwrap_or_default(),
-                    ]);
-                }
-
-                println!("{table}");
-            }
-
-            RepoCommands::Add {
-                repo_name,
-                remote_url,
-            } => todo!(),
-
-            RepoCommands::Remove { repo_name } => {
-                fs::remove_dir_all(path.join(repo_name))?;
-            }
-
-            RepoCommands::Update {
-                homepage_url,
-                license,
-                title,
-                version,
-                repo_name,
-            } => {
-                let repo_path = &path.join(repo_name);
-                let mut repo = repo::read_manifest(repo_path)?;
-
-                if title.is_some() {
-                    repo.metadata.title = title;
-                }
-                if homepage_url.is_some() {
-                    repo.metadata.homepage_url = homepage_url;
-                }
-                if license.is_some() {
-                    repo.metadata.license = license;
-                }
-                if version.is_some() {
-                    repo.metadata.version = version;
-                }
-
-                let manifest_serialized = &serde_yaml::to_string(&repo)?;
-                let signature = sign(repo_path, manifest_serialized)?;
-
-                update_manifest(repo_path, manifest_serialized, &signature.to_bytes())?;
-            }
-        },
+        Command::Repo { command } => repo_commands(path, command)?,
 
         Command::Build {
             build_manifest_path,
@@ -201,23 +148,170 @@ fn main() -> Result<()> {
             build(&build_manifest_path, &path.join(repo_name))?;
         }
 
-        Command::Install => todo!(),
+        Command::Install { repo_name, package } => {
+            let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
+                path.join(repo_name)
+            } else {
+                let mut possible_repos = Vec::new();
 
-        Command::Remove => todo!(),
+                for repo_entry in fs::read_dir(path)? {
+                    let repo_dir = repo_entry?;
+                    let package = get_package(&repo_dir.path(), &package);
+
+                    if package.is_ok() {
+                        possible_repos.push((repo_dir.path(), package?));
+                    }
+                }
+
+                if possible_repos.is_empty() {
+                    bail!("No Repositories contain that package.")
+                }
+
+                if possible_repos.len() == 1 {
+                    possible_repos.first().unwrap().0.clone()
+                } else {
+                    todo!(
+                        "Multiple Repositories contain Multiple versions of this package. Handling for this is currently not implemented."
+                    )
+                }
+            };
+
+            install(&target_repo_path, &package)?;
+        }
+
+        Command::Remove { repo_name, package } => todo!(),
 
         Command::Bundle { command } => todo!(),
 
         Command::Update => todo!(),
+
+        Command::Run {
+            repo_name,
+            package,
+            entrypoint,
+            args,
+        } => {
+            let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
+                path.join(repo_name)
+            } else {
+                let mut possible_repos = Vec::new();
+
+                for repo_entry in fs::read_dir(path)? {
+                    let repo_dir = repo_entry?;
+                    let package = get_package(&repo_dir.path(), &package);
+
+                    if package.is_ok() {
+                        possible_repos.push((repo_dir.path(), package?));
+                    }
+                }
+
+                if possible_repos.is_empty() {
+                    bail!("No Repositories contain that package.")
+                }
+
+                if possible_repos.len() == 1 {
+                    possible_repos.first().unwrap().0.clone()
+                } else {
+                    todo!(
+                        "Multiple Repositories contain Multiple versions of this package. Handling for this is currently not implemented."
+                    )
+                }
+            };
+
+            let entrypoint = entrypoint.unwrap_or_else(|| {
+                let package = get_package(&target_repo_path, &package).unwrap();
+
+                // TODO: Make this cleaner
+                package.commands.first().unwrap().to_str().unwrap().into()
+            });
+
+            start(
+                &target_repo_path,
+                &package,
+                &entrypoint,
+                args.unwrap_or_default(),
+            )?;
+        }
     };
 
     Ok(())
 }
 
-pub const CLAP_STYLING: clap::builder::styling::Styles = clap::builder::styling::Styles::styled()
-    .header(clap_cargo::style::HEADER)
-    .usage(clap_cargo::style::USAGE)
-    .literal(clap_cargo::style::LITERAL)
-    .placeholder(clap_cargo::style::PLACEHOLDER)
-    .error(clap_cargo::style::ERROR)
-    .valid(clap_cargo::style::VALID)
-    .invalid(clap_cargo::style::INVALID);
+fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
+    match command {
+        RepoCommands::Create { repo_name } => repo::create(&path.join(repo_name))?,
+
+        RepoCommands::List => {
+            let mut table = Table::new();
+
+            table.set_header(vec![
+                "Name",
+                "Title",
+                "URL",
+                "Hash Kind",
+                "Homepage",
+                "License",
+                "Version",
+            ]);
+
+            for repo_entry in fs::read_dir(path)? {
+                let repo_dir = repo_entry?;
+                let repo_name = repo_dir.file_name();
+                let repo_name_str = repo_name.to_str().unwrap();
+
+                let repo = repo::read_manifest(&repo_dir.path())?;
+
+                table.add_row(vec![
+                    &repo_name_str,
+                    repo.metadata.title.unwrap_or_default().as_str(),
+                    &repo.updates_url.unwrap_or_default(),
+                    &repo.hash_kind.to_string(),
+                    &repo.metadata.homepage_url.unwrap_or_default(),
+                    &repo.metadata.license.unwrap_or_default(),
+                    &repo.metadata.version.unwrap_or_default(),
+                ]);
+            }
+
+            println!("{table}");
+        }
+        RepoCommands::Add {
+            repo_name,
+            remote_url,
+        } => todo!(),
+
+        RepoCommands::Remove { repo_name } => {
+            fs::remove_dir_all(path.join(repo_name))?;
+        }
+
+        RepoCommands::Update {
+            homepage_url,
+            license,
+            title,
+            version,
+            repo_name,
+        } => {
+            let repo_path = &path.join(repo_name);
+            let mut repo = repo::read_manifest(repo_path)?;
+
+            if title.is_some() {
+                repo.metadata.title = title;
+            }
+            if homepage_url.is_some() {
+                repo.metadata.homepage_url = homepage_url;
+            }
+            if license.is_some() {
+                repo.metadata.license = license;
+            }
+            if version.is_some() {
+                repo.metadata.version = version;
+            }
+
+            let manifest_serialized = &serde_yaml::to_string(&repo)?;
+            let signature = sign(repo_path, manifest_serialized)?;
+
+            update_manifest(repo_path, manifest_serialized, &signature.to_bytes())?;
+        }
+    };
+
+    Ok(())
+}

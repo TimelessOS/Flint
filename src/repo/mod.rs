@@ -117,6 +117,8 @@ pub fn remove_package(package_id: &str, repo_path: &Path) -> Result<()> {
 /// - Repository doesn't exist
 /// - ID doesn't exist inside the Repository
 pub fn get_package(repo_path: &Path, id: &str) -> Result<PackageManifest> {
+    println!("{repo_path:?}");
+
     let repo_manifest = read_manifest(repo_path)?;
 
     // Check ID's and aliases

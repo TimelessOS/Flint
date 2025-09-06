@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::chunks::{Chunk, HashKind};
 
 #[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
@@ -17,7 +19,7 @@ pub struct PackageManifest {
     pub id: String,
     pub aliases: Vec<String>,
     pub chunks: Vec<Chunk>,
-    pub commands: Vec<String>,
+    pub commands: Vec<PathBuf>,
 }
 
 /// All of these are user visible, and should carry no actual weight.

@@ -21,7 +21,7 @@ struct BuildManifest {
     metadata: Metadata,
     /// A list of commands that this will give access to
     #[serde(default)]
-    commands: Vec<String>,
+    commands: Vec<PathBuf>,
     /// Directory relative to the manifest
     directory: PathBuf,
     /// Edition
