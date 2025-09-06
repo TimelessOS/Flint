@@ -5,8 +5,8 @@
 
 ### Close, and are **Required** to for most users.
 
-- [ ] Building
-- [ ] Running
+- [x] Building
+- [x] Running
 - [ ] Bundling
 - [ ] Downloads
 - [ ] Compression
