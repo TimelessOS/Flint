@@ -201,16 +201,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap-cargo"
-version = "0.17.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "db0bd7fba4da3bce65c1ddb068a9d632876c779d20c8b515fbce1e867fccce17"
-dependencies = [
- "anstyle",
- "clap",
-]
-
-[[package]]
 name = "clap_builder"
 version = "4.5.47"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -524,7 +514,6 @@ dependencies = [
  "anyhow",
  "blake3",
  "clap",
- "clap-cargo",
  "comfy-table",
  "directories",
  "ed25519-dalek",

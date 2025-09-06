@@ -8,7 +8,11 @@
 - [x] Building
 - [x] Running
 - [ ] Bundling
+  - [ ] Extraction
+  - [ ] Building
 - [ ] Downloads
+  - [ ] Downloading chunks
+  - [ ] Downloading/Pulling Repositories
 - [ ] Compression
 
 ### Far future
