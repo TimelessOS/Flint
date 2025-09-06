@@ -6,7 +6,7 @@ use std::{
 };
 use walkdir::WalkDir;
 
-use crate::chunks::{Chunk, HashKind, hash::hash};
+use crate::chunks::{Chunk, HashKind, get_chunk_filename, hash::hash};
 
 /// Turns a filesystem tree into a list of chunks
 ///
@@ -115,14 +115,6 @@ pub fn estimate_tree_size(chunks: &[Chunk]) -> u64 {
     }
 
     size
-}
-
-fn get_chunk_filename(hash: &str, permissions: u32) -> String {
-    let mut new_hash = hash.to_string();
-
-    new_hash.push_str(&permissions.to_string());
-
-    new_hash
 }
 
 #[cfg(test)]

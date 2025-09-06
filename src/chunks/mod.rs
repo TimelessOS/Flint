@@ -1,5 +1,6 @@
 mod hash;
 mod tree;
+pub mod utils;
 
 use std::path::PathBuf;
 
@@ -19,4 +20,12 @@ pub struct Chunk {
 
     /// Expected size in kilobytes, rounded.
     size: u64,
+}
+
+fn get_chunk_filename(hash: &str, permissions: u32) -> String {
+    let mut new_hash = hash.to_string();
+
+    new_hash.push_str(&permissions.to_string());
+
+    new_hash
 }

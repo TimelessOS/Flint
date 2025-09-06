@@ -129,6 +129,49 @@ pub fn get_package(repo_path: &Path, id: &str) -> Result<PackageManifest> {
     bail!("No package found in Repository.");
 }
 
+/// Lists all packages from a repository.
+///
+/// # Errors
+///
+/// - Filesystem errors (Permissions most likely)
+/// - Repository doesn't exist
+pub fn get_all_packages(repo_path: &Path) -> Result<Vec<PackageManifest>> {
+    let repo_manifest = read_manifest(repo_path)?;
+    let mut packages = Vec::new();
+
+    // Check ID's and aliases
+    for package in repo_manifest.packages {
+        packages.push(package);
+    }
+
+    Ok(packages)
+}
+
+/// Lists all installed packages from a repository.
+///
+/// # Errors
+///
+/// - Filesystem errors (Permissions most likely)
+/// - Repository doesn't exist
+pub fn get_all_installed_packages(repo_path: &Path) -> Result<Vec<PackageManifest>> {
+    let mut packages = Vec::new();
+    let installed_path = &repo_path.join("installed");
+
+    if !installed_path.exists() {
+        Ok(Vec::new())
+    } else {
+        // Check ID's and aliases
+        for entry in fs::read_dir(installed_path)? {
+            let file = entry?.path();
+            let package = serde_yaml::from_str(&fs::read_to_string(file)?)?;
+
+            packages.push(package);
+        }
+
+        Ok(packages)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use temp_dir::TempDir;
