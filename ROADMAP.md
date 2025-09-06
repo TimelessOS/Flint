@@ -13,7 +13,7 @@
 - [ ] Downloads
   - [ ] Downloading chunks
   - [ ] Downloading/Pulling Repositories
-- [ ] Compression
+  - [ ] Compression
 
 ### Far future
 
