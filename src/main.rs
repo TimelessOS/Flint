@@ -312,7 +312,7 @@ fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
 
             update_manifest(repo_path, manifest_serialized, &signature.to_bytes())?;
         }
-    };
+    }
 
     Ok(())
 }

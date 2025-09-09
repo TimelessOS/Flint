@@ -114,7 +114,7 @@ pub fn install_tree(
     hash_kind: HashKind,
 ) -> Result<()> {
     use crate::chunks::network::install_chunks;
-    use tokio::runtime::Runtime;
+    use tokio::runtime;
 
     let mut not_installed_chunks = Vec::new();
 
@@ -125,7 +125,7 @@ pub fn install_tree(
         };
     }
 
-    let runtime = Runtime::new()?;
+    let runtime = runtime::Builder::new_current_thread().build()?;
     runtime.block_on(install_chunks(
         &not_installed_chunks,
         mirrors,
