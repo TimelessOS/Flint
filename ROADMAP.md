@@ -17,7 +17,7 @@
 
 ### Far future
 
-- [ ] Steel (Official Repository for Flint)
-- [ ] Stone (Community Repository for Flint)
+- [ ] Optionally distribute Flint via Flint
+- [ ] Steel (Officialish Repository for Flint)
 - [ ] Windows Support
 - [ ] MacOS Support
