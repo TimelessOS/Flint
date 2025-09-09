@@ -27,10 +27,10 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.34"
 tar = "0.4.44"
 tokio = { version = "1.47.1", optional = true, features = ["rt"] }
+temp-dir = "0.1.16"
 walkdir = "2.5.0"
 
 [dev-dependencies]
-temp-dir = "0.1.16"
 httpmock = "0.7.0"
 
 [features]

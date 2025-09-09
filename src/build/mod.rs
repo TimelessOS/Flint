@@ -1,11 +1,15 @@
+mod sources;
+
 use anyhow::{Context, Result, bail};
 use std::{
     fs,
     path::{Path, PathBuf},
     process::Command,
 };
+use temp_dir::TempDir;
 
 use crate::{
+    build::sources::get_sources,
     chunks::save_tree,
     repo::{self, Metadata, PackageManifest, insert_package, remove_package},
 };
@@ -28,6 +32,18 @@ struct BuildManifest {
     edition: String,
     /// Script to be run before packaging
     build_script: Option<PathBuf>,
+
+    sources: Option<Vec<Source>>,
+}
+
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
+struct Source {
+    /// Should either be git, tar or local
+    kind: String,
+    /// URL to the source.
+    url: String,
+    /// Path to extract.
+    path: Option<String>,
 }
 
 /// Builds and inserts a package into a Repository from a `build_manifest`
@@ -37,6 +53,7 @@ struct BuildManifest {
 /// - Filesystem (Out of Space, Permissions)
 /// - Build Script Failure
 pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageManifest> {
+    let build_dir = TempDir::new()?;
     let build_manifest_path = &build_manifest_path.canonicalize()?;
 
     let build_manifest: BuildManifest =
@@ -49,11 +66,15 @@ pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageMani
         .parent()
         .unwrap_or_else(|| Path::new("/"));
 
+    if let Some(sources) = build_manifest.sources {
+        get_sources(build_dir.path(), build_manifest_parent, &sources)?;
+    }
+
     if let Some(script) = build_manifest.build_script {
         let result = Command::new("sh")
             .arg("-c")
             .arg(build_manifest_parent.join(script))
-            .current_dir(build_manifest_parent)
+            .current_dir(build_dir.path())
             .status()?;
 
         if !result.success() {
@@ -62,7 +83,7 @@ pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageMani
     }
 
     let chunks = save_tree(
-        &build_manifest_parent.join(build_manifest.directory),
+        &build_dir.path().join(&build_manifest.directory),
         &repo_path.join("chunks"),
         repo_manifest.hash_kind,
     )?;
