@@ -157,9 +157,7 @@ pub fn get_all_installed_packages(repo_path: &Path) -> Result<Vec<PackageManifes
     let mut packages = Vec::new();
     let installed_path = &repo_path.join("installed");
 
-    if !installed_path.exists() {
-        Ok(Vec::new())
-    } else {
+    if installed_path.exists() {
         // Check ID's and aliases
         for entry in fs::read_dir(installed_path)? {
             let file = entry?.path();
@@ -169,6 +167,8 @@ pub fn get_all_installed_packages(repo_path: &Path) -> Result<Vec<PackageManifes
         }
 
         Ok(packages)
+    } else {
+        Ok(Vec::new())
     }
 }
 
