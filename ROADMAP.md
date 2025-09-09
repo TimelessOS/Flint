@@ -10,8 +10,8 @@
 - [ ] Bundling
   - [ ] Extraction
   - [ ] Building
-- [ ] Downloads
-  - [ ] Downloading chunks
+- [x] Downloads
+  - [x] Downloading chunks
   - [ ] Downloading/Pulling Repositories
   - [ ] Compression
 

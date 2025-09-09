@@ -1,4 +1,6 @@
 mod hash;
+#[cfg(feature = "network")]
+pub mod network;
 mod tree;
 pub mod utils;
 

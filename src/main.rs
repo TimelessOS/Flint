@@ -274,6 +274,7 @@ fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
 
             println!("{table}");
         }
+
         RepoCommands::Add {
             repo_name,
             remote_url,

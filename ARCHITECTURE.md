@@ -10,7 +10,6 @@ The manifest contains repository metadata, including:
 
 - **Name**
 - **Description**
-- **Updates URL** (URL to a SIGNED manifest that should be used as an update)
 - **Public Key** (The public key of the **NEXT** manifest)
 - **Mirror URLs**
 - **Minimum Flint version required**

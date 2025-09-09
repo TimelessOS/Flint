@@ -1,0 +1,226 @@
+use std::{fs, path::Path};
+
+use anyhow::{Result, bail};
+use futures::{StreamExt, stream::FuturesUnordered};
+use reqwest;
+
+use crate::chunks::{Chunk, HashKind, get_chunk_filename, hash::hash};
+
+/// Installs a particular chunk from a particular mirror
+///
+/// # Errors
+///
+/// - The internet sent back corrupt/malicious data, timed out, or is blatently not working.
+/// - Filesystem out of space
+pub async fn install_chunk(
+    chunk: &Chunk,
+    mirror: &str,
+    hash_kind: HashKind,
+    chunk_store_path: &Path,
+) -> Result<()> {
+    let chunk_name = get_chunk_filename(&chunk.hash, chunk.permissions);
+    let url = format!("{mirror}/chunks/{chunk_name}");
+    let request = reqwest::get(url).await?;
+    let body = request.bytes().await?;
+
+    let hash = hash(hash_kind, &body);
+
+    if hash == chunk.hash {
+        fs::write(chunk_store_path.join(chunk_name), body)?;
+
+        Ok(())
+    } else {
+        bail!("Invalid chunk data returned.")
+    }
+}
+
+/// Installs all chunks from a list of mirrors
+/// NOTE: Chunks will be installed out of order, and any mirror potentially.
+///
+/// # Errors
+///
+/// - The internet sent back corrupt/malicious data, timed out, or is blatently not working.
+/// - Filesystem out of space
+pub async fn install_chunks(
+    chunks: &[&Chunk],
+    mirrors: &[String],
+    hash_kind: HashKind,
+    chunk_store_path: &Path,
+) -> Result<()> {
+    let mut tasks = FuturesUnordered::new();
+
+    for chunk in chunks {
+        let mirrors = mirrors.to_vec();
+        let chunk_store_path = chunk_store_path.to_path_buf();
+
+        tasks.push(async move {
+            let mut success = false;
+
+            for mirror in mirrors {
+                match install_chunk(chunk, &mirror, hash_kind, &chunk_store_path).await {
+                    Ok(()) => {
+                        success = true;
+                        break;
+                    }
+                    Err(err) => {
+                        eprintln!(
+                            "Failed to fetch chunk {} from mirror {}: {err}",
+                            &chunk.hash, mirror
+                        );
+                    }
+                }
+            }
+
+            if success {
+                Ok(())
+            } else {
+                bail!("All mirrors failed for chunk {}", &chunk.hash)
+            }
+        });
+    }
+
+    while let Some(result) = tasks.next().await {
+        result?; // propagate first hard failure
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use httpmock::prelude::*;
+    use std::path::PathBuf;
+    use temp_dir::TempDir;
+    use tokio::runtime::Runtime;
+
+    fn run_async_test<F: std::future::Future<Output = ()>>(f: F) {
+        let rt = Runtime::new().unwrap();
+        rt.block_on(f);
+    }
+
+    #[test]
+    fn test_install_chunk_success() {
+        run_async_test(async {
+            let temp_dir = TempDir::new().unwrap();
+            let chunk_store_path = temp_dir.path();
+
+            let data = b"hello world";
+            let hash_kind = HashKind::Blake3;
+            let hash = hash(hash_kind, data);
+
+            let chunk = Chunk {
+                hash,
+                path: PathBuf::new(),
+                size: 1,
+                permissions: 0o644,
+            };
+
+            // Mock server
+            let server = MockServer::start();
+            let _mock = server.mock(|when, then| {
+                when.path(format!(
+                    "/chunks/{}",
+                    get_chunk_filename(&chunk.hash, chunk.permissions)
+                ));
+                then.status(200).body(data);
+            });
+
+            // Run function
+            install_chunk(&chunk, &server.base_url(), hash_kind, chunk_store_path)
+                .await
+                .unwrap();
+
+            // Verify file exists
+            let path = chunk_store_path.join(get_chunk_filename(&chunk.hash, chunk.permissions));
+            let saved = fs::read(path).unwrap();
+            assert_eq!(saved, data);
+        });
+    }
+
+    #[test]
+    fn test_install_chunk_corrupt_data() {
+        run_async_test(async {
+            let temp_dir = TempDir::new().unwrap();
+            let chunk_store_path = temp_dir.path();
+
+            let good_data = b"hello world";
+            let bad_data = b"garbage";
+
+            let hash_kind = HashKind::Blake3;
+            let hash = hash(hash_kind, good_data);
+
+            let chunk = Chunk {
+                hash,
+                path: PathBuf::new(),
+                size: 1,
+                permissions: 0o644,
+            };
+
+            let server = MockServer::start();
+            let _mock = server.mock(|when, then| {
+                when.path(format!(
+                    "/chunks/{}",
+                    get_chunk_filename(&chunk.hash, chunk.permissions)
+                ));
+                then.status(200).body(bad_data);
+            });
+
+            let result =
+                install_chunk(&chunk, &server.base_url(), hash_kind, chunk_store_path).await;
+
+            assert!(result.is_err(), "Expected corrupt data to fail");
+        });
+    }
+
+    #[test]
+    fn test_install_chunks_with_fallback_mirrors() {
+        run_async_test(async {
+            let temp_dir = TempDir::new().unwrap();
+            let chunk_store_path = temp_dir.path();
+
+            let data = b"mirror test";
+            let hash_kind = HashKind::Blake3;
+            let hash = hash(hash_kind, data);
+
+            let chunk = Chunk {
+                hash,
+                path: PathBuf::new(),
+                size: 1,
+                permissions: 0o644,
+            };
+
+            // Bad mirror (returns nonsense)
+            let bad_server = MockServer::start();
+            let _bad_mock = bad_server.mock(|when, then| {
+                when.any_request();
+                then.status(200).body("garbage");
+            });
+
+            // Good mirror
+            let good_server = MockServer::start();
+            let _good_mock = good_server.mock(|when, then| {
+                when.path(format!(
+                    "/chunks/{}",
+                    get_chunk_filename(&chunk.hash, chunk.permissions)
+                ));
+                then.status(200).body(data);
+            });
+
+            // Run function
+            install_chunks(
+                std::slice::from_ref(&&chunk),
+                &[bad_server.base_url(), good_server.base_url()],
+                hash_kind,
+                chunk_store_path,
+            )
+            .await
+            .unwrap();
+
+            // Verify saved
+            let path = chunk_store_path.join(get_chunk_filename(&chunk.hash, chunk.permissions));
+            let saved = fs::read(path).unwrap();
+            assert_eq!(saved, data);
+        });
+    }
+}

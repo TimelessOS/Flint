@@ -105,6 +105,38 @@ pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) ->
     Ok(())
 }
 
+/// Installs all chunks in a tree
+#[cfg(feature = "network")]
+pub fn install_tree(
+    chunks: &[Chunk],
+    chunk_store_path: &Path,
+    mirrors: &[String],
+    hash_kind: HashKind,
+) -> Result<()> {
+    use tokio::runtime::Runtime;
+
+    use crate::chunks::network::install_chunks;
+
+    let mut not_installed_chunks = Vec::new();
+
+    for chunk in chunks {
+        let chunk_path = chunk_store_path.join(get_chunk_filename(&chunk.hash, chunk.permissions));
+        if !chunk_path.exists() {
+            not_installed_chunks.push(chunk);
+        };
+    }
+
+    let runtime = Runtime::new()?;
+    runtime.block_on(install_chunks(
+        &not_installed_chunks,
+        mirrors,
+        hash_kind,
+        chunk_store_path,
+    ))?;
+
+    Ok(())
+}
+
 /// Returns the tree's estimated size in kilobytes.
 #[must_use]
 pub fn estimate_tree_size(chunks: &[Chunk]) -> u64 {

@@ -6,7 +6,12 @@ use std::{
     process::{Command, ExitStatus},
 };
 
-use crate::{chunks::load_tree, repo};
+#[cfg(feature = "network")]
+use crate::chunks::install_tree;
+use crate::{
+    chunks::load_tree,
+    repo::{self, read_manifest},
+};
 
 /// Starts a package from an entrypoint
 ///
@@ -65,6 +70,16 @@ pub fn install(repo_path: &Path, package_id: &str) -> Result<()> {
     let package_manifest = repo::get_package(repo_path, package_id)
         .with_context(|| "Failed to get package from Repository.")?;
     let installed_path = &repo_path.join("installed").join(package_id);
+    let repo_manifest = read_manifest(repo_path)?;
+
+    #[cfg(feature = "network")]
+    install_tree(
+        &package_manifest.chunks,
+        &repo_path.join("chunks"),
+        &repo_manifest.mirrors,
+        repo_manifest.hash_kind,
+    )
+    .with_context(|| "Failed to install package.");
 
     load_tree(
         installed_path,
