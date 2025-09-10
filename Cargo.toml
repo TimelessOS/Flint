@@ -22,7 +22,13 @@ ed25519-dalek = { version = "=3.0.0-pre.1", features = [
 ] }
 futures = { version = "0.3.31", optional = true }
 rand_core = { version = "0.9.3", features = ["os_rng"] }
-reqwest = { version = "0.12.23", optional = true }
+reqwest = { version = "0.12.23", optional = true, default-features = false, features = [
+    "http2",
+    "rustls-tls",
+    "gzip",
+    "brotli",
+    "system-proxy",
+] }
 serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.34"
 tar = "0.4.44"

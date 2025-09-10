@@ -44,6 +44,8 @@ struct Source {
     url: String,
     /// Path to extract.
     path: Option<String>,
+    /// Git commit to use
+    commit: Option<String>,
 }
 
 /// Builds and inserts a package into a Repository from a `build_manifest`

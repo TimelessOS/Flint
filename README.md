@@ -6,14 +6,12 @@ Flint is the universal package manager.
 
 ## Installation
 
-### Other:
+### Via flint
+
+This is currently not supported yet.
+
+### Cargo
 
 ```bash
-mkdir -p ~/.local/bin
-
-curl -o ~/.local/bin/flint https://github.com/TimelessOS/Flint/releases/latest/flint.x86_64
-
-~/.local/bin/flint update
+cargo install flint --locked
 ```
-
-NOTE: This assumes `~/.local/bin` is in your path, you may need to add it.
