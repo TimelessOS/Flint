@@ -3,7 +3,7 @@ use std::fs::create_dir_all;
 use std::{fs, path::Path};
 
 use crate::chunks::HashKind;
-use crate::crypto::key::{get_public_key, serialize_verifying_key};
+use crate::crypto::key::{get_private_key, serialize_verifying_key};
 use crate::crypto::signing::sign;
 
 mod manifest;
@@ -36,7 +36,7 @@ pub fn create(repo_path: &Path) -> Result<()> {
         mirrors: Vec::new(),
         updates_url: None,
         packages: Vec::new(),
-        public_key: serialize_verifying_key(get_public_key(None)?)?,
+        public_key: serialize_verifying_key(get_private_key(None)?.verifying_key())?,
     };
 
     let manifest_serialized = serde_yaml::to_string(&manifest)?;

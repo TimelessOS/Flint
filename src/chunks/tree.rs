@@ -16,7 +16,7 @@ use crate::chunks::{Chunk, HashKind, get_chunk_filename, hash::hash};
 ///
 /// # Panics
 ///
-/// - If `tree_path` points to a file, but the file somehow has no parent (eg: is root), then this will panic because there is no way that can be handled.
+/// - If `tree_path` points to a file, but the file somehow has no parent (eg: is root).
 pub fn save_tree(
     tree_path: &Path,
     chunk_store_path: &Path,
@@ -81,7 +81,7 @@ pub fn save_tree(
 ///
 /// # Errors
 ///
-/// - Filesystem out of space (Very likely)
+/// - Filesystem (Out of space, Permissions)
 pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) -> Result<()> {
     for chunk in chunks {
         let extracted_path = load_path.join(&chunk.path);
@@ -106,6 +106,11 @@ pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) ->
 }
 
 /// Installs all chunks in a tree
+///
+/// # Errors
+///
+/// - The network returns invalid/malicious data
+/// - Filesystem errors (Out of space, Permissions)
 #[cfg(feature = "network")]
 pub fn install_tree(
     chunks: &[Chunk],
@@ -122,7 +127,7 @@ pub fn install_tree(
         let chunk_path = chunk_store_path.join(get_chunk_filename(&chunk.hash, chunk.permissions));
         if !chunk_path.exists() {
             not_installed_chunks.push(chunk);
-        };
+        }
     }
 
     let runtime = runtime::Builder::new_current_thread().build()?;

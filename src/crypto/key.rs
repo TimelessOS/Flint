@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use ed25519_dalek::{
     SigningKey, VerifyingKey,
     pkcs8::{
@@ -52,32 +52,6 @@ fn unwrap_config_path(config_path: Option<&Path>) -> Result<PathBuf> {
     };
 
     Ok(path)
-}
-
-/// Returns public key, generating it AND/OR the private key if necessary
-pub fn get_public_key(config_path: Option<&Path>) -> Result<VerifyingKey> {
-    let path = unwrap_config_path(config_path)?.join("id_ed25519.pub");
-
-    if !path.exists() {
-        let new_key = generate_public_key(&unwrap_config_path(config_path)?)
-            .with_context(|| "Could not generate new public key")?;
-        let new_key_serialized = serialize_verifying_key(new_key)?;
-        fs::write(&path, new_key_serialized).with_context(|| "Could not write new public key?")?;
-    }
-
-    let pem_str = fs::read_to_string(&path)?;
-    let key = VerifyingKey::from_public_key_pem(&pem_str)
-        .map_err(|e| anyhow::anyhow!("failed to decode public key: {e}"))?;
-
-    Ok(key)
-}
-
-fn generate_public_key(config_path: &Path) -> Result<VerifyingKey> {
-    let signing_key =
-        get_private_key(Some(config_path)).with_context(|| "Could not get private key")?;
-    let public_key = signing_key.verifying_key();
-
-    Ok(public_key)
 }
 
 pub fn serialize_verifying_key(verifying_key: VerifyingKey) -> Result<String> {
@@ -134,26 +108,6 @@ mod tests {
 
         let permissions = fs::metadata(path.join("id_ed25519"))?.permissions().mode();
         assert_eq!(permissions & 0o777, 0o600);
-
-        Ok(())
-    }
-
-    #[test]
-    fn test_generate_public_key_and_read_back() -> Result<()> {
-        let temp = TempDir::new().unwrap();
-        let config_dir = &temp.path().join("flint");
-
-        let public_path = config_dir.join("id_ed25519.pub");
-
-        // Generate private+public
-        let private_key = get_private_key(Some(config_dir))?;
-        let public_key = get_public_key(Some(config_dir))?;
-
-        assert!(public_path.exists());
-        assert_eq!(
-            private_key.verifying_key().to_bytes(),
-            public_key.to_bytes()
-        );
 
         Ok(())
     }

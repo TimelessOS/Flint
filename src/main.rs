@@ -3,7 +3,7 @@ use clap::{Parser, Subcommand};
 use comfy_table::Table;
 use flint::{
     build::build,
-    repo::{self, get_package, update_manifest},
+    repo::{self, PackageManifest, get_package, remove_package, update_manifest},
     run::{install, start},
 };
 use std::{
@@ -52,8 +52,10 @@ enum Command {
         /// The package to install
         package: String,
     },
-    /// Remove a package
+    /// Remove an installed package
     Remove {
+        /// The Repository to remove from
+        #[arg(long)]
         repo_name: Option<String>,
         package: String,
     },
@@ -104,6 +106,11 @@ enum RepoCommands {
 
         repo_name: String,
     },
+    /// Remove a Package from this Repository
+    RemovePackage {
+        repo_name: String,
+        package_id: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -152,34 +159,27 @@ fn main() -> Result<()> {
             let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
                 path.join(repo_name)
             } else {
-                let mut possible_repos = Vec::new();
-
-                for repo_entry in fs::read_dir(path)? {
-                    let repo_dir = repo_entry?;
-                    let package = get_package(&repo_dir.path(), &package);
-
-                    if package.is_ok() {
-                        possible_repos.push((repo_dir.path(), package?));
-                    }
-                }
-
-                if possible_repos.is_empty() {
-                    bail!("No Repositories contain that package.")
-                }
-
-                if possible_repos.len() == 1 {
-                    possible_repos.first().unwrap().0.clone()
-                } else {
-                    todo!(
-                        "Multiple Repositories contain Multiple versions of this package. Handling for this is currently not implemented."
-                    )
-                }
+                resolve_package(path, &package, |_| true)?.0
             };
 
             install(&target_repo_path, &package)?;
         }
 
-        Command::Remove { repo_name, package } => todo!(),
+        Command::Remove {
+            repo_name,
+            package: id,
+        } => {
+            let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
+                path.join(repo_name)
+            } else {
+                resolve_package(path, &id, |repo_path| {
+                    repo_path.join("installed").join(&id).exists()
+                })?
+                .0
+            };
+
+            fs::remove_dir_all(target_repo_path.join("installed").join(&id))?;
+        }
 
         Command::Bundle { command } => todo!(),
 
@@ -194,28 +194,7 @@ fn main() -> Result<()> {
             let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
                 path.join(repo_name)
             } else {
-                let mut possible_repos = Vec::new();
-
-                for repo_entry in fs::read_dir(path)? {
-                    let repo_dir = repo_entry?;
-                    let package = get_package(&repo_dir.path(), &package);
-
-                    if package.is_ok() {
-                        possible_repos.push((repo_dir.path(), package?));
-                    }
-                }
-
-                if possible_repos.is_empty() {
-                    bail!("No Repositories contain that package.")
-                }
-
-                if possible_repos.len() == 1 {
-                    possible_repos.first().unwrap().0.clone()
-                } else {
-                    todo!(
-                        "Multiple Repositories contain Multiple versions of this package. Handling for this is currently not implemented."
-                    )
-                }
+                resolve_package(path, &package, |_| true)?.0
             };
 
             let entrypoint = entrypoint.unwrap_or_else(|| {
@@ -232,9 +211,45 @@ fn main() -> Result<()> {
                 args.unwrap_or_default(),
             )?;
         }
-    };
+    }
 
     Ok(())
+}
+
+/// Search all repositories for one matching a predicate
+fn resolve_package<F>(
+    path: &Path,
+    package_id: &str,
+    filter: F,
+) -> Result<(PathBuf, PackageManifest)>
+where
+    F: Fn(&Path) -> bool,
+{
+    let mut possible_repos = Vec::new();
+
+    for repo_entry in fs::read_dir(path)? {
+        let repo_dir = repo_entry?;
+        let package = get_package(&repo_dir.path(), package_id);
+
+        if let Ok(package) = package {
+            let filtered = filter(&repo_dir.path());
+            if filtered {
+                possible_repos.push((repo_dir.path(), package));
+            }
+        }
+    }
+
+    if possible_repos.is_empty() {
+        bail!("No Repositories contain that package.")
+    }
+
+    if possible_repos.len() != 1 {
+        todo!(
+            "Multiple Repositories contain Multiple versions of this package. Handling for this is currently not implemented."
+        )
+    }
+
+    Ok(possible_repos.first().unwrap().clone())
 }
 
 fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
@@ -311,6 +326,13 @@ fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             let signature = sign(repo_path, manifest_serialized)?;
 
             update_manifest(repo_path, manifest_serialized, &signature.to_bytes())?;
+        }
+
+        RepoCommands::RemovePackage {
+            repo_name,
+            package_id,
+        } => {
+            remove_package(&package_id, &path.join(repo_name))?;
         }
     }
 
