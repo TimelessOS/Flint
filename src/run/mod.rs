@@ -20,7 +20,7 @@ use crate::{
 /// - Specified an entrypoint that doesn't exist
 /// - Filesystem errors (Out of space, Permissions)
 /// - Invalid Repository/Package manifest
-pub fn start<S: AsRef<OsStr>>(
+pub async fn start<S: AsRef<OsStr>>(
     repo_path: &Path,
     package_id: &str,
     entrypoint: &str,
@@ -42,7 +42,9 @@ pub fn start<S: AsRef<OsStr>>(
     if let Some(entrypoint) = matches.first() {
         // Install if not installed
         if !installed_path.exists() {
-            install(repo_path, package_id).with_context(|| "Failed to install package.")?;
+            install(repo_path, package_id)
+                .await
+                .with_context(|| "Failed to install package.")?;
         }
 
         // Allow build_manifests to have a / at the start of entrypoints, eg: /bin/bash
@@ -66,7 +68,7 @@ pub fn start<S: AsRef<OsStr>>(
 ///
 /// - Filesystem errors (Out of space, Permissions)
 /// - Invalid Repository/Package manifest
-pub fn install(repo_path: &Path, package_id: &str) -> Result<()> {
+pub async fn install(repo_path: &Path, package_id: &str) -> Result<()> {
     let package_manifest = repo::get_package(repo_path, package_id)
         .with_context(|| "Failed to get package from Repository.")?;
     let installed_path = &repo_path.join("installed").join(package_id);
@@ -79,6 +81,7 @@ pub fn install(repo_path: &Path, package_id: &str) -> Result<()> {
         &repo_manifest.mirrors,
         repo_manifest.hash_kind,
     )
+    .await
     .with_context(|| "Failed to install package.")?;
 
     load_tree(

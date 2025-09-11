@@ -112,14 +112,13 @@ pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) ->
 /// - The network returns invalid/malicious data
 /// - Filesystem errors (Out of space, Permissions)
 #[cfg(feature = "network")]
-pub fn install_tree(
+pub async fn install_tree(
     chunks: &[Chunk],
     chunk_store_path: &Path,
     mirrors: &[String],
     hash_kind: HashKind,
 ) -> Result<()> {
     use crate::chunks::network::install_chunks;
-    use tokio::runtime;
 
     let mut not_installed_chunks = Vec::new();
 
@@ -130,13 +129,7 @@ pub fn install_tree(
         }
     }
 
-    let runtime = runtime::Builder::new_current_thread().build()?;
-    runtime.block_on(install_chunks(
-        &not_installed_chunks,
-        mirrors,
-        hash_kind,
-        chunk_store_path,
-    ))?;
+    install_chunks(&not_installed_chunks, mirrors, hash_kind, chunk_store_path).await?;
 
     Ok(())
 }

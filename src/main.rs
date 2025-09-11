@@ -170,7 +170,7 @@ async fn main() -> Result<()> {
                 resolve_package(path, &package, |_| true)?.0
             };
 
-            install(&target_repo_path, &package)?;
+            install(&target_repo_path, &package).await?;
         }
 
         Command::Remove {
@@ -234,7 +234,8 @@ async fn main() -> Result<()> {
                 &package,
                 &entrypoint,
                 args.unwrap_or_default(),
-            )?;
+            )
+            .await?;
         }
     }
 
