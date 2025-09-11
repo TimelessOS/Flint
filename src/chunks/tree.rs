@@ -78,11 +78,28 @@ pub fn save_tree(
 }
 
 /// Turns a list of chunks into a filesystem tree
+/// This is the same version of the function
 ///
 /// # Errors
 ///
 /// - Filesystem (Out of space, Permissions)
 pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) -> Result<()> {
+    let result = load_tree_unsafe(load_path, chunk_store_path, chunks);
+
+    if result.is_err() {
+        fs::remove_dir_all(load_path)?;
+    }
+
+    result
+}
+
+/// Turns a list of chunks into a filesystem tree
+/// /// This is the same version of the function
+///
+/// # Errors
+///
+/// - Filesystem (Out of space, Permissions)
+pub fn load_tree_unsafe(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) -> Result<()> {
     for chunk in chunks {
         let extracted_path = load_path.join(&chunk.path);
         let chunk_path = chunk_store_path.join(get_chunk_filename(&chunk.hash, chunk.permissions));

@@ -1,6 +1,7 @@
 use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
 use comfy_table::Table;
+use dialoguer::{Select, theme::ColorfulTheme};
 #[cfg(feature = "network")]
 use flint::repo::network::add_repository;
 use flint::{
@@ -340,9 +341,7 @@ where
     }
 
     if possible_repos.len() > 1 {
-        todo!(
-            "Multiple Repositories contain Multiple versions of this package. Handling for this is currently not implemented."
-        )
+        return choose_repo(possible_repos);
     }
 
     if let Some(possible_repo) = possible_repos.first() {
@@ -350,6 +349,30 @@ where
     } else {
         bail!("No Repositories contain that package.")
     }
+}
+
+fn choose_repo(
+    possible_repos: Vec<(PathBuf, PackageManifest)>,
+) -> Result<(PathBuf, PackageManifest)> {
+    let items: Vec<String> = possible_repos
+        .iter()
+        .map(|(path, manifest)| {
+            format!(
+                "{} ({} {})",
+                path.file_name().unwrap().to_string_lossy(),
+                manifest.metadata.title.clone().unwrap_or_default(),
+                manifest.metadata.version.clone().unwrap_or_default()
+            )
+        })
+        .collect();
+
+    let selection = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Multiple repositories contain this package, pick one")
+        .items(&items)
+        .default(0)
+        .interact()?;
+
+    Ok(possible_repos.into_iter().nth(selection).unwrap())
 }
 
 async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
@@ -397,7 +420,7 @@ async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             repo_name,
             remote_url,
         } => {
-            let repo_path = &resolve_repo(path, &repo_name)?;
+            let repo_path = &path.join(repo_name);
             fs::create_dir_all(repo_path)?;
 
             add_repository(repo_path, &remote_url, None).await?;

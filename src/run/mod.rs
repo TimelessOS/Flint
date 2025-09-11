@@ -41,7 +41,8 @@ pub async fn start<S: AsRef<OsStr>>(
     // Make sure theres at least a single match
     if let Some(entrypoint) = matches.first() {
         // Install if not installed
-        if !installed_path.exists() {
+        #[cfg(feature = "network")]
+        if !installed_path.join("install.meta").exists() {
             install(repo_path, package_id)
                 .await
                 .with_context(|| "Failed to install package.")?;

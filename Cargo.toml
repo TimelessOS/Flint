@@ -35,6 +35,7 @@ tar = "0.4.44"
 tokio = { version = "1.47.1", features = ["rt", "macros", "rt-multi-thread"] }
 temp-dir = "0.1.16"
 walkdir = "2.5.0"
+dialoguer = { version = "0.12.0", features = ["completion"] }
 
 [dev-dependencies]
 httpmock = "0.7.0"
