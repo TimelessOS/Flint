@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::{Parser, Subcommand};
 use comfy_table::Table;
 #[cfg(feature = "network")]
@@ -128,10 +128,27 @@ enum BundleCommands {
     Create,
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 enum Scope {
     User,
     System,
+}
+
+fn system_data_dir() -> PathBuf {
+    #[cfg(target_os = "linux")]
+    {
+        PathBuf::from("/var/lib/flint")
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        PathBuf::from("/Library/Application Support/flint")
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        PathBuf::from(r"C:\ProgramData\Flint")
+    }
 }
 
 #[tokio::main]
@@ -147,27 +164,29 @@ async fn main() -> Result<()> {
         Scope::User
     };
 
-    let path = if scope == Scope::User {
-        &get_repos_dir()?
+    let base_path_buf = if scope == Scope::User {
+        get_repos_dir()?
     } else {
-        Path::new("/var/lib/flint")
+        system_data_dir()
     };
 
+    let base_path = &base_path_buf.as_path();
+
     match args.command {
-        Command::Repo { command } => repo_commands(path, command).await?,
+        Command::Repo { command } => repo_commands(base_path, command).await?,
 
         Command::Build {
             build_manifest_path,
             repo_name,
         } => {
-            build(&build_manifest_path, &path.join(repo_name))?;
+            build(&build_manifest_path, &resolve_repo(base_path, &repo_name)?)?;
         }
 
         Command::Install { repo_name, package } => {
             let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
-                path.join(repo_name)
+                resolve_repo(base_path, &repo_name)?
             } else {
-                resolve_package(path, &package, |_| true)?.0
+                resolve_package(base_path, &package, |_| true)?.0
             };
 
             install(&target_repo_path, &package).await?;
@@ -178,9 +197,9 @@ async fn main() -> Result<()> {
             package: id,
         } => {
             let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
-                path.join(repo_name)
+                resolve_repo(base_path, &repo_name)?
             } else {
-                resolve_package(path, &id, |repo_path| {
+                resolve_package(base_path, &id, |repo_path| {
                     repo_path.join("installed").join(&id).exists()
                 })?
                 .0
@@ -195,7 +214,7 @@ async fn main() -> Result<()> {
         Command::Update => {
             use flint::repo::network::update_repository;
 
-            for entry in path.read_dir()? {
+            for entry in base_path.read_dir()? {
                 use flint::repo::get_all_installed_packages;
 
                 let repo = entry?;
@@ -205,17 +224,18 @@ async fn main() -> Result<()> {
                 let update_changed_anything = update_repository(&repo_path).await?;
 
                 if update_changed_anything {
-                    println!("Updating {}", repo_name.display());
+                    println!("Updating Repository '{}'", repo_name.display());
                 } else {
-                    println!("Skipping {}, no changes found", repo_name.display());
+                    println!(
+                        "Skipping Repository '{}', no changes found",
+                        repo_name.display()
+                    );
                 }
 
                 for installed_package in get_all_installed_packages(&repo_path)? {
                     let repo_package = get_package(&repo_path, &installed_package.id)?;
 
-                    if installed_package == repo_package {
-                        println!("{} is up to date.", repo_package.id);
-                    } else {
+                    if installed_package != repo_package {
                         println!("Updating {}", repo_package.id);
 
                         install(&repo_path, &repo_package.id).await?;
@@ -229,31 +249,71 @@ async fn main() -> Result<()> {
             package,
             entrypoint,
             args,
-        } => {
-            let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
-                path.join(repo_name)
-            } else {
-                resolve_package(path, &package, |_| true)?.0
-            };
-
-            let entrypoint = entrypoint.unwrap_or_else(|| {
-                let package = get_package(&target_repo_path, &package).unwrap();
-
-                // TODO: Make this cleaner
-                package.commands.first().unwrap().to_str().unwrap().into()
-            });
-
-            start(
-                &target_repo_path,
-                &package,
-                &entrypoint,
-                args.unwrap_or_default(),
-            )
-            .await?;
-        }
+        } => run_cmd(base_path, repo_name, package, entrypoint, args).await?,
     }
 
     Ok(())
+}
+
+async fn run_cmd(
+    path: &Path,
+    repo_name: Option<String>,
+    package: String,
+    entrypoint: Option<String>,
+    args: Option<Vec<String>>,
+) -> Result<()> {
+    let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
+        resolve_repo(path, &repo_name)?
+    } else {
+        resolve_package(path, &package, |_| true)?.0
+    };
+
+    let entrypoint = if let Some(e) = entrypoint {
+        e
+    } else {
+        let package =
+            get_package(&target_repo_path, &package).context("Failed to read package manifest")?;
+
+        let first_command = package
+            .commands
+            .first()
+            .context("Package has no commands defined")?;
+
+        first_command
+            .to_str()
+            .context("First command path was not valid UTF-8")?
+            .to_string()
+    };
+
+    start(
+        &target_repo_path,
+        &package,
+        &entrypoint,
+        args.unwrap_or_default(),
+    )
+    .await?;
+
+    Ok(())
+}
+
+/// Resolve a repo name into a safe absolute path under the given base `path`.
+fn resolve_repo(base: &Path, repo_name: &str) -> Result<PathBuf> {
+    let candidate = base.join(repo_name);
+
+    let base_canon = base
+        .canonicalize()
+        .context("Failed to canonicalize base path")?;
+    let candidate_canon = candidate
+        .canonicalize()
+        .context("Failed to canonicalize repo path")?;
+
+    if !candidate_canon.starts_with(&base_canon) {
+        anyhow::bail!("Invalid repo path: escapes repository root");
+    }
+
+    println!("{}", candidate_canon.display());
+
+    Ok(candidate_canon)
 }
 
 /// Search all repositories for one matching a predicate
@@ -279,22 +339,22 @@ where
         }
     }
 
-    if possible_repos.is_empty() {
-        bail!("No Repositories contain that package.")
-    }
-
-    if possible_repos.len() != 1 {
+    if possible_repos.len() > 1 {
         todo!(
             "Multiple Repositories contain Multiple versions of this package. Handling for this is currently not implemented."
         )
     }
 
-    Ok(possible_repos.first().unwrap().clone())
+    if let Some(possible_repo) = possible_repos.first() {
+        Ok(possible_repo.clone())
+    } else {
+        bail!("No Repositories contain that package.")
+    }
 }
 
 async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
     match command {
-        RepoCommands::Create { repo_name } => repo::create(&path.join(repo_name))?,
+        RepoCommands::Create { repo_name } => repo::create(&path.join(&repo_name))?,
 
         RepoCommands::List => {
             let mut table = Table::new();
@@ -312,7 +372,9 @@ async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             for repo_entry in fs::read_dir(path)? {
                 let repo_dir = repo_entry?;
                 let repo_name = repo_dir.file_name();
-                let repo_name_str = repo_name.to_str().unwrap();
+                let repo_name_str = repo_name
+                    .to_str()
+                    .ok_or_else(|| anyhow!("Repository {} is not unicode.", repo_name.display()))?;
 
                 let repo = repo::read_manifest(&repo_dir.path())?;
 
@@ -335,14 +397,14 @@ async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             repo_name,
             remote_url,
         } => {
-            let repo_path = &path.join(repo_name);
+            let repo_path = &resolve_repo(path, &repo_name)?;
             fs::create_dir_all(repo_path)?;
 
             add_repository(repo_path, &remote_url, None).await?;
         }
 
         RepoCommands::Remove { repo_name } => {
-            fs::remove_dir_all(path.join(repo_name))?;
+            fs::remove_dir_all(resolve_repo(path, &repo_name)?)?;
         }
 
         RepoCommands::Update {
@@ -353,7 +415,7 @@ async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             repo_name,
             mirrors,
         } => {
-            let repo_path = &path.join(repo_name);
+            let repo_path = &resolve_repo(path, &repo_name)?;
             let mut repo = repo::read_manifest(repo_path)?;
 
             if title.is_some() {
@@ -385,7 +447,7 @@ async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             repo_name,
             package_id,
         } => {
-            remove_package(&package_id, &path.join(repo_name))?;
+            remove_package(&package_id, &resolve_repo(path, &repo_name)?)?;
         }
     }
 
