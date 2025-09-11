@@ -966,7 +966,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "flint"
+name = "flintpkg"
 version = "0.1.0"
 dependencies = [
  "anyhow",

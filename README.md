@@ -1,6 +1,6 @@
 # Flint
 
-> This contains only implementation and user/packager instructions, for a more indepth view, look at `ARCHITECTURE.md`
+> This contains only implementation details and user/packager instructions, for a more indepth view, look at `ARCHITECTURE.md`
 
 Flint is the universal package manager.
 
@@ -13,5 +13,5 @@ This is currently not supported yet.
 ### Cargo
 
 ```bash
-cargo install flint --locked
+cargo install flintpkg --locked
 ```

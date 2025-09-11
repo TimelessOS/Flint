@@ -1,5 +1,5 @@
 [package]
-name = "flint"
+name = "flintpkg"
 version = "0.1.0"
 description = "The universal package manager"
 license = "MIT OR Apache-2.0"
