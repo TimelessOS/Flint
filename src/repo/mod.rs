@@ -163,7 +163,7 @@ pub fn get_all_installed_packages(repo_path: &Path) -> Result<Vec<PackageManifes
         // Check ID's and aliases
         for entry in fs::read_dir(installed_path)? {
             let file = entry?.path();
-            let package = serde_yaml::from_str(&fs::read_to_string(file)?)?;
+            let package = serde_yaml::from_str(&fs::read_to_string(file.join("install.meta"))?)?;
 
             packages.push(package);
         }

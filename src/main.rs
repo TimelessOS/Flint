@@ -196,6 +196,8 @@ async fn main() -> Result<()> {
             use flint::repo::network::update_repository;
 
             for entry in path.read_dir()? {
+                use flint::repo::get_all_installed_packages;
+
                 let repo = entry?;
                 let repo_path = repo.path();
                 let repo_name = repo.file_name();
@@ -206,6 +208,18 @@ async fn main() -> Result<()> {
                     println!("Updating {}", repo_name.display());
                 } else {
                     println!("Skipping {}, no changes found", repo_name.display());
+                }
+
+                for installed_package in get_all_installed_packages(&repo_path)? {
+                    let repo_package = get_package(&repo_path, &installed_package.id)?;
+
+                    if installed_package == repo_package {
+                        println!("{} is up to date.", repo_package.id);
+                    } else {
+                        println!("Updating {}", repo_package.id);
+
+                        install(&repo_path, &repo_package.id).await?;
+                    }
                 }
             }
         }

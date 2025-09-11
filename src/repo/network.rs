@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use ed25519_dalek::VerifyingKey;
 use std::path::Path;
 
@@ -28,7 +28,7 @@ pub async fn update_repository(repo_path: &Path) -> Result<bool> {
 
         Ok(old_manifest == new_manifest)
     } else {
-        bail!("No mirrors available.")
+        Ok(false)
     }
 }
 
