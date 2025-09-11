@@ -69,7 +69,7 @@ pub fn update_manifest(
     repo_path: &Path,
     new_manifest_serialized: &str,
     signature: &[u8],
-) -> Result<()> {
+) -> Result<RepoManifest> {
     let old_manifest = read_manifest_unsigned(repo_path)?;
 
     // VERIFY. IMPORTANT.
@@ -80,7 +80,7 @@ pub fn update_manifest(
     )?;
 
     // Make sure it actually deserializes
-    let _: RepoManifest = serde_yaml::from_str(new_manifest_serialized)?;
+    let manifest: RepoManifest = serde_yaml::from_str(new_manifest_serialized)?;
 
     // Write to a .new, and then rename atomically
     atomic_replace(
@@ -90,10 +90,10 @@ pub fn update_manifest(
     )?;
     atomic_replace(repo_path, "manifest.yml.sig", signature)?;
 
-    Ok(())
+    Ok(manifest)
 }
 
-fn atomic_replace(base_path: &Path, filename: &str, contents: &[u8]) -> Result<()> {
+pub fn atomic_replace(base_path: &Path, filename: &str, contents: &[u8]) -> Result<()> {
     let new_path = &base_path.join(filename.to_owned() + ".new");
 
     fs::write(new_path, contents)?;

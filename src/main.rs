@@ -1,6 +1,8 @@
 use anyhow::{Result, bail};
 use clap::{Parser, Subcommand};
 use comfy_table::Table;
+#[cfg(feature = "network")]
+use flint::repo::network::add_repository;
 use flint::{
     build::build,
     repo::{self, PackageManifest, get_package, remove_package, update_manifest},
@@ -64,6 +66,7 @@ enum Command {
         #[command(subcommand)]
         command: BundleCommands,
     },
+    #[cfg(feature = "network")]
     /// Updates a repository and its packages
     Update,
     /// Run a package's entrypoint
@@ -87,6 +90,7 @@ enum RepoCommands {
     /// List all Repositories
     List,
     /// Add a Repository from a remote url
+    #[cfg(feature = "network")]
     Add {
         repo_name: String,
         remote_url: String,
@@ -103,6 +107,9 @@ enum RepoCommands {
         title: Option<String>,
         #[arg(long)]
         version: Option<String>,
+        #[arg(long)]
+        /// Comma seperated list of all mirrors
+        mirrors: Option<String>,
 
         repo_name: String,
     },
@@ -127,7 +134,8 @@ enum Scope {
     System,
 }
 
-fn main() -> Result<()> {
+#[tokio::main]
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     let scope = if args.system {
@@ -146,7 +154,7 @@ fn main() -> Result<()> {
     };
 
     match args.command {
-        Command::Repo { command } => repo_commands(path, command)?,
+        Command::Repo { command } => repo_commands(path, command).await?,
 
         Command::Build {
             build_manifest_path,
@@ -183,7 +191,24 @@ fn main() -> Result<()> {
 
         Command::Bundle { command } => todo!(),
 
-        Command::Update => todo!(),
+        #[cfg(feature = "network")]
+        Command::Update => {
+            use flint::repo::network::update_repository;
+
+            for entry in path.read_dir()? {
+                let repo = entry?;
+                let repo_path = repo.path();
+                let repo_name = repo.file_name();
+
+                let update_changed_anything = update_repository(&repo_path).await?;
+
+                if update_changed_anything {
+                    println!("Updating {}", repo_name.display());
+                } else {
+                    println!("Skipping {}, no changes found", repo_name.display());
+                }
+            }
+        }
 
         Command::Run {
             repo_name,
@@ -252,7 +277,7 @@ where
     Ok(possible_repos.first().unwrap().clone())
 }
 
-fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
+async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
     match command {
         RepoCommands::Create { repo_name } => repo::create(&path.join(repo_name))?,
 
@@ -290,10 +315,16 @@ fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             println!("{table}");
         }
 
+        #[cfg(feature = "network")]
         RepoCommands::Add {
             repo_name,
             remote_url,
-        } => todo!(),
+        } => {
+            let repo_path = &path.join(repo_name);
+            fs::create_dir_all(repo_path)?;
+
+            add_repository(repo_path, &remote_url, None).await?;
+        }
 
         RepoCommands::Remove { repo_name } => {
             fs::remove_dir_all(path.join(repo_name))?;
@@ -305,6 +336,7 @@ fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             title,
             version,
             repo_name,
+            mirrors,
         } => {
             let repo_path = &path.join(repo_name);
             let mut repo = repo::read_manifest(repo_path)?;
@@ -320,6 +352,12 @@ fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             }
             if version.is_some() {
                 repo.metadata.version = version;
+            }
+            if let Some(mirrors) = mirrors {
+                repo.mirrors = mirrors
+                    .split(',')
+                    .map(std::string::ToString::to_string)
+                    .collect();
             }
 
             let manifest_serialized = &serde_yaml::to_string(&repo)?;

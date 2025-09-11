@@ -79,7 +79,7 @@ pub fn install(repo_path: &Path, package_id: &str) -> Result<()> {
         &repo_manifest.mirrors,
         repo_manifest.hash_kind,
     )
-    .with_context(|| "Failed to install package.");
+    .with_context(|| "Failed to install package.")?;
 
     load_tree(
         installed_path,

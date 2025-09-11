@@ -9,7 +9,7 @@ use std::path::PathBuf;
 pub use hash::HashKind;
 pub use tree::*;
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Chunk {
     /// Path
     path: PathBuf,

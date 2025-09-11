@@ -2,7 +2,7 @@ use std::fmt;
 
 /// WARNING: Only Blake3 is currently implemented for the time being.
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HashKind {
     Blake3,
     Sha512,

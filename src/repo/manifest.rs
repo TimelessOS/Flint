@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::chunks::{Chunk, HashKind};
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct RepoManifest {
     pub metadata: Metadata,
     pub packages: Vec<PackageManifest>,
@@ -13,7 +13,7 @@ pub struct RepoManifest {
     pub hash_kind: HashKind,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct PackageManifest {
     pub metadata: Metadata,
     pub id: String,
@@ -23,7 +23,7 @@ pub struct PackageManifest {
 }
 
 /// All of these are user visible, and should carry no actual weight.
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Metadata {
     pub title: Option<String>,
     pub description: Option<String>,

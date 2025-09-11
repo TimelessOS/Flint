@@ -8,8 +8,10 @@ use crate::crypto::signing::sign;
 
 mod manifest;
 mod manifest_io;
+#[cfg(feature = "network")]
+pub mod network;
 pub use manifest::*;
-pub use manifest_io::*;
+pub use manifest_io::{read_manifest, read_manifest_signed, update_manifest};
 
 /// Creates a repository at `repo_path`
 ///
