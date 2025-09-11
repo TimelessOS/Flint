@@ -16,9 +16,6 @@ use std::{
 
 use crate::{crypto::signing::sign, utils::config::get_repos_dir};
 
-mod crypto;
-mod utils;
-
 /// Simple program to greet a person
 #[derive(Parser)]
 #[command(version, about, long_about = None)]

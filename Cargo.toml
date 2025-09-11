@@ -43,6 +43,9 @@ httpmock = "0.7.0"
 [features]
 network = ["dep:reqwest", "dep:futures"]
 
+[[bin]]
+name = "flint"
+path = "src/main.rs"
 
 [lints.rust]
 unsafe_code = "forbid"
