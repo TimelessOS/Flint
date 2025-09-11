@@ -20,7 +20,6 @@ pub async fn install_chunk(
 ) -> Result<()> {
     let chunk_name = get_chunk_filename(&chunk.hash, chunk.permissions);
     let url = format!("{mirror}/chunks/{chunk_name}");
-    println!("{}", &url);
     let request = reqwest::get(url).await?;
     let body = request.bytes().await?;
 
@@ -56,12 +55,14 @@ pub async fn install_chunks(
         fs::create_dir_all(&chunk_store_path)?;
 
         tasks.push(async move {
+            println!("Downloading chunk {}", chunk.hash);
             let mut success = false;
 
             for mirror in mirrors {
                 match install_chunk(chunk, &mirror, hash_kind, &chunk_store_path).await {
                     Ok(()) => {
                         success = true;
+                        println!("Downloaded chunk {}", chunk.hash);
                         break;
                     }
                     Err(err) => {
