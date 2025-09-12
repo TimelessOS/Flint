@@ -1,3 +1,4 @@
+pub mod bundle;
 mod sources;
 
 use anyhow::{Context, Result, bail};

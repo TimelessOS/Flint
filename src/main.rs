@@ -5,7 +5,7 @@ use dialoguer::{Select, theme::ColorfulTheme};
 #[cfg(feature = "network")]
 use flintpkg::repo::network::add_repository;
 use flintpkg::{
-    build::build,
+    build::{build, bundle::build_bundle},
     repo::{self, PackageManifest, get_package, remove_package, update_manifest},
     run::{install, start},
 };
@@ -126,7 +126,11 @@ enum BundleCommands {
     /// Extract a bundle into a Repository
     Extract,
     /// Extract a package from a Repository into a bundle
-    Create,
+    Create {
+        repo_name: String,
+        bundle_path: PathBuf,
+        header_path: PathBuf,
+    },
 }
 
 #[derive(Debug, PartialEq, Clone, Copy)]
@@ -209,7 +213,17 @@ async fn main() -> Result<()> {
             fs::remove_dir_all(target_repo_path.join("installed").join(&id))?;
         }
 
-        Command::Bundle { command } => todo!(),
+        Command::Bundle { command } => match command {
+            BundleCommands::Extract => todo!(),
+            BundleCommands::Create {
+                repo_name,
+                bundle_path,
+                header_path,
+            } => {
+                let bundle = build_bundle(&header_path, &resolve_repo(base_path, &repo_name)?)?;
+                fs::write(bundle_path, bundle)?;
+            }
+        },
 
         #[cfg(feature = "network")]
         Command::Update => {
@@ -286,13 +300,25 @@ async fn run_cmd(
             .to_string()
     };
 
+    // Install if not installed
+    #[cfg(feature = "network")]
+    if !target_repo_path
+        .join("installed/")
+        .join(&package)
+        .join("install.meta")
+        .exists()
+    {
+        install(&target_repo_path, &package)
+            .await
+            .with_context(|| "Failed to install package.")?;
+    }
+
     start(
         &target_repo_path,
         &package,
         &entrypoint,
         args.unwrap_or_default(),
-    )
-    .await?;
+    )?;
 
     Ok(())
 }
@@ -311,8 +337,6 @@ fn resolve_repo(base: &Path, repo_name: &str) -> Result<PathBuf> {
     if !candidate_canon.starts_with(&base_canon) {
         anyhow::bail!("Invalid repo path: escapes repository root");
     }
-
-    println!("{}", candidate_canon.display());
 
     Ok(candidate_canon)
 }

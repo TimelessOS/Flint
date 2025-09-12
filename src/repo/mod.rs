@@ -131,6 +131,36 @@ pub fn get_package(repo_path: &Path, id: &str) -> Result<PackageManifest> {
     bail!("No package found in Repository.");
 }
 
+/// Gets an installed package manifest from a repository.
+///
+/// # Errors
+///
+/// - Filesystem errors (Permissions most likely)
+/// - Repository doesn't exist
+/// - ID doesn't exist inside the Repository
+/// - Package isn't installed
+pub fn get_installed_package(repo_path: &Path, id: &str) -> Result<PackageManifest> {
+    let repo_manifest = read_manifest(repo_path)?;
+
+    // Check ID's and aliases
+    for package in repo_manifest.packages {
+        if package.id == id || package.aliases.contains(&id.to_string()) {
+            let installed_path = repo_path.join("installed").join(id).join("install.meta");
+            if !installed_path.exists() {
+                bail!("Package '{}' is not installed.", id)
+            }
+
+            let package_manifest_serialized = fs::read_to_string(installed_path)?;
+            let package_manifest: PackageManifest =
+                serde_yaml::from_str(&package_manifest_serialized)?;
+
+            return Ok(package_manifest);
+        }
+    }
+
+    bail!("No package found in Repository.");
+}
+
 /// Lists all packages from a repository.
 ///
 /// # Errors

@@ -7,6 +7,7 @@ repository = "https://github.com/TimelessOS/Flint"
 keywords = ["cli", "package-manager", "installer", "software-delivery"]
 categories = ["command-line-utilities"]
 edition = "2024"
+default-run = "flint"
 
 [dependencies]
 anyhow = "1.0.99"
@@ -20,7 +21,7 @@ ed25519-dalek = { version = "=3.0.0-pre.1", features = [
     "rand_core",
     "signature",
 ] }
-futures = { version = "0.3.31", optional = true }
+futures = { version = "0.3.31" }
 rand_core = { version = "0.9.3", features = ["os_rng"] }
 reqwest = { version = "0.12.23", optional = true, default-features = false, features = [
     "http2",
@@ -41,7 +42,7 @@ dialoguer = { version = "0.12.0", features = ["completion"] }
 httpmock = "0.7.0"
 
 [features]
-network = ["dep:reqwest", "dep:futures"]
+network = ["dep:reqwest"]
 
 [[bin]]
 name = "flint"
@@ -61,3 +62,6 @@ style = "warn"
 # cargo = "deny" # Temporarily disabled because we use a prerelease version of ed25519, and blake3 is not using the same deps.
 pedantic = "warn"
 nursery = "warn"
+
+[profile.release]
+lto = true

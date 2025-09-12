@@ -78,7 +78,7 @@ pub fn save_tree(
 }
 
 /// Turns a list of chunks into a filesystem tree
-/// This is the same version of the function
+/// Will delete the tree on failure, preventing a partially installed state to persist.
 ///
 /// # Errors
 ///
@@ -94,7 +94,6 @@ pub fn load_tree(load_path: &Path, chunk_store_path: &Path, chunks: &[Chunk]) ->
 }
 
 /// Turns a list of chunks into a filesystem tree
-/// /// This is the same version of the function
 ///
 /// # Errors
 ///
@@ -109,10 +108,9 @@ pub fn load_tree_unsafe(load_path: &Path, chunk_store_path: &Path, chunks: &[Chu
             fs::create_dir_all(parent)?;
         }
 
-        if fs::hard_link(&chunk_path, &extracted_path).is_err() {
-            fs::copy(&chunk_path, &extracted_path)
-                .with_context(|| "Could not copy data while extracting")?;
-        }
+        fs::hard_link(&chunk_path, &extracted_path)
+            .or_else(|_| fs::copy(&chunk_path, &extracted_path).map(|_| ()))
+            .with_context(|| "Could not copy data while extracting")?;
 
         let mut perms = fs::metadata(&extracted_path)?.permissions();
         perms.set_mode(chunk.permissions & 0o777);
