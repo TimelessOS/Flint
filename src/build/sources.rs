@@ -90,6 +90,7 @@ fn pull_git(source: &Source, target_path: &Path) -> Result<()> {
 
 #[cfg(feature = "network")]
 async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
+    use anyhow::bail;
     use flate2::read::GzDecoder;
     use std::io::Cursor;
     use tar::Archive;
@@ -128,8 +129,6 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
         }
         Ok(())
     } else {
-        use anyhow::bail;
-
         bail!("No extension on tar source url.")
     }
 }
