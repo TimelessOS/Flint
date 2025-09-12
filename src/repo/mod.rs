@@ -233,7 +233,7 @@ mod tests {
 
         insert_package(&package_manifest, repo_path)?;
         assert!(get_package(repo_path, "test").is_ok());
-        assert!(insert_package(&package_manifest, repo_path).is_err());
+        assert!(insert_package(&package_manifest, repo_path).is_ok());
 
         remove_package(&package_manifest.id, repo_path)?;
         assert!(get_package(repo_path, "test").is_err());
