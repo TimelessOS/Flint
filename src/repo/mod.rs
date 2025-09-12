@@ -229,6 +229,7 @@ mod tests {
                 version: None,
                 license: None,
             },
+            env: None,
         };
 
         insert_package(&package_manifest, repo_path)?;

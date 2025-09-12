@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, bail};
 use std::{
+    collections::HashMap,
     ffi::OsStr,
     fs,
     path::{Path, PathBuf},
@@ -44,9 +45,25 @@ pub fn start<S: AsRef<OsStr>>(
         let entrypoint = entrypoint.to_string_lossy();
         let entrypoint: &str = entrypoint.trim_start_matches('/');
 
+        let mut envs: HashMap<String, String> = package_manifest.env.unwrap_or_default();
+
+        // I hate I have to do this.
+        let keys_to_update: Vec<String> = envs
+            .iter()
+            .filter(|(_, v)| v.contains("./"))
+            .map(|(k, _)| k.clone())
+            .collect();
+
+        for key in keys_to_update {
+            if let Some(value) = envs.get_mut(&key) {
+                *value = value.replace("./", &format!("{}/", &installed_path.to_string_lossy()));
+            }
+        }
+
         // Actually run the command
         let status = Command::new(installed_path.join(entrypoint))
             .args(args)
+            .envs(envs)
             .status()?;
 
         Ok(status)

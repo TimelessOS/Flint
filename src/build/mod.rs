@@ -3,6 +3,7 @@ mod sources;
 
 use anyhow::{Context, Result, bail};
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
     process::Command,
@@ -35,14 +36,15 @@ struct BuildManifest {
     build_script: Option<PathBuf>,
     /// Script to be run after `build_script` but before packaging
     post_script: Option<PathBuf>,
-
+    /// Sources to pull when building
     sources: Option<Vec<Source>>,
-
     /// ``SubPackages`` to be included directly into the output AND at build time.
     include: Option<Vec<String>>,
     /// ``SubPackages`` to be included directly ONLY at build time.
     /// Useful for SDKs.
     sdks: Option<Vec<String>>,
+    /// RUNTIME environment variables
+    env: Option<HashMap<String, String>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -81,25 +83,31 @@ pub async fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<Packa
         get_sources(build_dir.path(), build_manifest_parent, &sources).await?;
     }
 
+    let mut envs = build_manifest.env.unwrap_or_default();
+
     if let Some(packages) = &build_manifest.include {
         for dependency in packages {
-            include(
+            let result = include(
                 build_manifest_parent,
                 dependency,
                 build_dir.path(),
                 repo_path,
             )?;
+
+            envs.extend(result);
         }
     }
 
     if let Some(packages) = &build_manifest.sdks {
         for dependency in packages {
-            include(
+            let result = include(
                 build_manifest_parent,
                 dependency,
                 build_dir.path(),
                 repo_path,
             )?;
+
+            envs.extend(result);
         }
     }
 
@@ -144,13 +152,18 @@ pub async fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<Packa
 
     included_chunks.extend(chunks);
 
-    let package_manifest = PackageManifest {
+    let mut package_manifest = PackageManifest {
         aliases: build_manifest.aliases,
         commands: build_manifest.commands,
         id: build_manifest.id,
         metadata: build_manifest.metadata,
         chunks: included_chunks,
+        env: None,
     };
+
+    if !envs.is_empty() {
+        package_manifest.env = Some(envs);
+    }
 
     insert_package(&package_manifest, repo_path)?;
 
@@ -162,7 +175,7 @@ fn include(
     dependency: &str,
     path_to_include_at: &Path,
     repo_path: &Path,
-) -> Result<()> {
+) -> Result<HashMap<String, String>> {
     let dependency_build_manifest_path = build_manifest_parent.join(dependency);
     let dependency_build_manifest: BuildManifest =
         serde_yaml::from_str(&fs::read_to_string(dependency_build_manifest_path)?)?;
@@ -172,5 +185,7 @@ fn include(
         path_to_include_at,
         &repo_path.join("chunks"),
         &dependency_manifest.chunks,
-    )
+    )?;
+
+    Ok(dependency_manifest.env.unwrap_or_default())
 }

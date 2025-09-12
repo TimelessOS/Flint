@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::chunks::{Chunk, HashKind};
 
@@ -20,6 +20,8 @@ pub struct PackageManifest {
     pub aliases: Vec<String>,
     pub chunks: Vec<Chunk>,
     pub commands: Vec<PathBuf>,
+    /// Runtime environment variables
+    pub env: Option<HashMap<String, String>>,
 }
 
 /// All of these are user visible, and should carry no actual weight.
