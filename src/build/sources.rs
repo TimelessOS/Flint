@@ -115,7 +115,7 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
 
     if let Some(extension) = Path::new(&source.url).extension() {
         // Detect gzip by extension
-        if extension.eq_ignore_ascii_case("tar.gz") || extension.eq_ignore_ascii_case("tgz") {
+        if extension.eq_ignore_ascii_case("gz") || extension.eq_ignore_ascii_case("tgz") {
             let tar = GzDecoder::new(cursor);
             let mut archive = Archive::new(tar);
             archive
