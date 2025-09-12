@@ -7,12 +7,12 @@
 
 - [x] Building
 - [x] Running
-- [ ] Bundling
+- [x] Bundling
   - [ ] Extraction
-  - [ ] Building
+  - [x] Building
 - [x] Downloads
   - [x] Downloading chunks
-  - [ ] Downloading/Pulling Repositories
+  - [x] Downloading/Pulling Repositories
   - [ ] Compression
 
 ### Far future

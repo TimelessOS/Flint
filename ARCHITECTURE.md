@@ -10,9 +10,9 @@ The manifest contains repository metadata, including:
 
 - **Name**
 - **Description**
-- **Public Key** (The public key of the **NEXT** manifest)
+- **Public Key** (The public key of the manifest)
 - **Mirror URLs**
-- **Minimum Flint version required**
+- **Edition** (Similar to rust/cargo edition, changes in language versions)
 - **Hash type** (defaults to `blake3`)
 - **Package manifests**
 
@@ -20,7 +20,7 @@ Each package manifest includes individual metadata and a chunklist (similar to `
 
 ### Chunks
 
-Chunks are the basis of Flints content-addressable storage (CAS) and deduplication. Chunk filenames are derived from a hash of their contents.
+Chunks are the basis of Flints content-addressable storage (CAS) and deduplication. Chunk filenames are derived from a hash of their contents and permissions.
 Each chunk contains the raw data from the file tree.
 
 ### Summary
@@ -29,6 +29,7 @@ The on-disk structure is:
 
 ```
 chunks/
+installed/
 manifest.yml.sig
 manifest.yml
 ```
@@ -45,4 +46,4 @@ The contents should be a repository with a single version of a single package, p
 
 ### On disk format
 
-Headers may be 512 KB, 1024 KB, or larger in 512 KB increments. The end of the header is identified by the bytes `75 73 74 61 72` (`ustar` in ASCII, the standard tar file signature). This allows for flexible header sizes.
+Headers may be 64 KB, 128 KB, or larger in 64 KB increments. The end of the header is identified by the bytes `75 73 74 61 72` (`ustar` in ASCII, the standard tar file signature). This allows for flexible header sizes.
