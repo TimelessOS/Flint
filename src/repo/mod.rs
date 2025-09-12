@@ -54,14 +54,11 @@ pub fn create(repo_path: &Path) -> Result<()> {
 /// # Errors
 /// - Repo not signed with local signature
 pub fn insert_package(package_manifest: &PackageManifest, repo_path: &Path) -> Result<()> {
+    let _ = remove_package(&package_manifest.id, repo_path);
+
     let mut repo_manifest = read_manifest(repo_path)?;
 
-    let mut packages: Vec<PackageManifest> = repo_manifest
-        .packages
-        .iter()
-        .filter(|package| package.id == package_manifest.id)
-        .cloned()
-        .collect();
+    let mut packages: Vec<PackageManifest> = repo_manifest.packages;
 
     for package in &packages {
         if package.aliases.contains(&package_manifest.id) {
@@ -128,7 +125,7 @@ pub fn get_package(repo_path: &Path, id: &str) -> Result<PackageManifest> {
         }
     }
 
-    bail!("No package found in Repository.");
+    bail!("Could not find package '{}' found in Repository.", id);
 }
 
 /// Gets an installed package manifest from a repository.

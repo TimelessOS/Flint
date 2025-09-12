@@ -11,8 +11,8 @@ use temp_dir::TempDir;
 
 use crate::{
     build::sources::get_sources,
-    chunks::save_tree,
-    repo::{self, Metadata, PackageManifest, insert_package, remove_package},
+    chunks::{load_tree, save_tree},
+    repo::{self, Metadata, PackageManifest, get_package, insert_package},
 };
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -33,8 +33,16 @@ struct BuildManifest {
     edition: String,
     /// Script to be run before packaging
     build_script: Option<PathBuf>,
+    /// Script to be run after `build_script` but before packaging
+    post_script: Option<PathBuf>,
 
     sources: Option<Vec<Source>>,
+
+    /// ``SubPackages`` to be included directly into the output AND at build time.
+    include: Option<Vec<String>>,
+    /// ``SubPackages`` to be included directly ONLY at build time.
+    /// Useful for SDKs.
+    sdks: Option<Vec<String>>,
 }
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -73,10 +81,34 @@ pub async fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<Packa
         get_sources(build_dir.path(), build_manifest_parent, &sources).await?;
     }
 
+    if let Some(packages) = &build_manifest.include {
+        for dependency in packages {
+            include(
+                build_manifest_parent,
+                dependency,
+                build_dir.path(),
+                repo_path,
+            )?;
+        }
+    }
+
+    if let Some(packages) = &build_manifest.sdks {
+        for dependency in packages {
+            include(
+                build_manifest_parent,
+                dependency,
+                build_dir.path(),
+                repo_path,
+            )?;
+        }
+    }
+
     if let Some(script) = build_manifest.build_script {
+        let script_path = build_manifest_parent.join(script);
+
         let result = Command::new("sh")
             .arg("-c")
-            .arg(build_manifest_parent.join(script))
+            .arg(script_path)
             .current_dir(build_dir.path())
             .status()?;
 
@@ -85,22 +117,60 @@ pub async fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<Packa
         }
     }
 
-    let chunks = save_tree(
-        &build_dir.path().join(&build_manifest.directory),
-        &repo_path.join("chunks"),
-        repo_manifest.hash_kind,
-    )?;
+    let out_dir = build_dir.path().join(&build_manifest.directory);
+
+    if let Some(script) = build_manifest.post_script {
+        let script_path = build_manifest_parent.join(script);
+
+        let result = Command::new("sh")
+            .arg("-c")
+            .arg(script_path)
+            .current_dir(&out_dir)
+            .status()?;
+
+        if !result.success() {
+            bail!("Build script failed.")
+        }
+    }
+
+    let mut included_chunks = Vec::new();
+    if let Some(packages) = &build_manifest.include {
+        for dependency in packages {
+            include(build_manifest_parent, dependency, &out_dir, repo_path)?;
+        }
+    }
+
+    let chunks = save_tree(&out_dir, &repo_path.join("chunks"), repo_manifest.hash_kind)?;
+
+    included_chunks.extend(chunks);
 
     let package_manifest = PackageManifest {
         aliases: build_manifest.aliases,
         commands: build_manifest.commands,
         id: build_manifest.id,
         metadata: build_manifest.metadata,
-        chunks,
+        chunks: included_chunks,
     };
 
-    let _ = remove_package(&package_manifest.id, repo_path);
     insert_package(&package_manifest, repo_path)?;
 
     Ok(package_manifest)
+}
+
+fn include(
+    build_manifest_parent: &Path,
+    dependency: &str,
+    path_to_include_at: &Path,
+    repo_path: &Path,
+) -> Result<()> {
+    let dependency_build_manifest_path = build_manifest_parent.join(dependency);
+    let dependency_build_manifest: BuildManifest =
+        serde_yaml::from_str(&fs::read_to_string(dependency_build_manifest_path)?)?;
+    let dependency_manifest = get_package(repo_path, &dependency_build_manifest.id)?;
+
+    load_tree(
+        path_to_include_at,
+        &repo_path.join("chunks"),
+        &dependency_manifest.chunks,
+    )
 }
