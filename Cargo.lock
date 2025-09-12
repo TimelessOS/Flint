@@ -976,6 +976,7 @@ dependencies = [
  "dialoguer",
  "directories",
  "ed25519-dalek",
+ "flate2",
  "futures",
  "httpmock",
  "rand_core",

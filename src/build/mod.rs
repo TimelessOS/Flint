@@ -55,7 +55,7 @@ struct Source {
 ///
 /// - Filesystem (Out of Space, Permissions)
 /// - Build Script Failure
-pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageManifest> {
+pub async fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageManifest> {
     let build_dir = TempDir::new()?;
     let build_manifest_path = &build_manifest_path.canonicalize()?;
 
@@ -70,7 +70,7 @@ pub fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageMani
         .unwrap_or_else(|| Path::new("/"));
 
     if let Some(sources) = build_manifest.sources {
-        get_sources(build_dir.path(), build_manifest_parent, &sources)?;
+        get_sources(build_dir.path(), build_manifest_parent, &sources).await?;
     }
 
     if let Some(script) = build_manifest.build_script {

@@ -184,7 +184,7 @@ async fn main() -> Result<()> {
             build_manifest_path,
             repo_name,
         } => {
-            build(&build_manifest_path, &resolve_repo(base_path, &repo_name)?)?;
+            build(&build_manifest_path, &resolve_repo(base_path, &repo_name)?).await?;
         }
 
         Command::Install { repo_name, package } => {
