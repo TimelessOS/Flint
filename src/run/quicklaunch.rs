@@ -54,11 +54,6 @@ pub fn update_quicklaunch(repos_path: &Path, quicklaunch_bin_path: &Path) -> Res
         let file = entry?;
 
         if !allowed.contains(&file.file_name()) {
-            println!(
-                "Removing quicklaunch entry for {}",
-                &file.file_name().display()
-            );
-
             fs::remove_file(file.path())?;
         }
     }

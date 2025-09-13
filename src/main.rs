@@ -21,6 +21,7 @@ use crate::{
 
 mod config;
 mod crypto;
+mod log;
 
 /// Simple program to greet a person
 #[derive(Parser)]
@@ -237,11 +238,10 @@ async fn main() -> Result<()> {
 
 #[cfg(feature = "network")]
 async fn update_all_repos(base_path: &Path) -> Result<()> {
-    use flintpkg::repo::{get_all_installed_packages, network::update_repository};
+    use crate::log::{skipped_update_repo, updated_package, updated_repo};
+    use flintpkg::repo::{get_all_installed_packages, network::update_repository, read_manifest};
 
     for entry in base_path.read_dir()? {
-        use flintpkg::repo::read_manifest;
-
         let repo = entry?;
         let repo_path = repo.path();
         let repo_name = repo.file_name();
@@ -249,12 +249,9 @@ async fn update_all_repos(base_path: &Path) -> Result<()> {
         let update_changed_anything = update_repository(&repo_path).await?;
 
         if update_changed_anything {
-            println!("Updating Repository '{}'", repo_name.display());
+            updated_repo(&repo_name);
         } else {
-            println!(
-                "Skipping Repository '{}', no changes found",
-                repo_name.display()
-            );
+            skipped_update_repo(&repo_name);
         }
 
         let repo_manifest = read_manifest(&repo_path)?;
@@ -263,7 +260,7 @@ async fn update_all_repos(base_path: &Path) -> Result<()> {
             let repo_package = get_package(&repo_manifest, &installed_package.id)?;
 
             if installed_package != repo_package {
-                println!("Updating {}", repo_package.id);
+                updated_package(&repo_package);
 
                 install(&repo_path, &repo_package.id).await?;
             }

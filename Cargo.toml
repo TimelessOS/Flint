@@ -38,6 +38,7 @@ temp-dir = "0.1.16"
 walkdir = "2.5.0"
 dialoguer = { version = "0.12.0", features = ["completion"] }
 flate2 = "1.1.2"
+console = { version = "0.16.1", default-features = false, features = ["ansi-parsing", "std", "windows-console-colors"] }
 
 [dev-dependencies]
 httpmock = "0.7.0"

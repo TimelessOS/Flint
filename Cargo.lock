@@ -973,6 +973,7 @@ dependencies = [
  "blake3",
  "clap",
  "comfy-table",
+ "console",
  "dialoguer",
  "directories",
  "ed25519-dalek",
