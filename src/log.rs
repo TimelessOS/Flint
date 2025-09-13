@@ -1,6 +1,6 @@
 use crate::repo::PackageManifest;
 use console::style;
-use std::ffi::OsStr;
+use std::{env::var_os, ffi::OsStr, path::Path};
 
 pub fn skipped_update(package_name: &str) {
     println!(
@@ -66,5 +66,39 @@ pub fn update_redirect(repo: &OsStr, old_url: &str, new_url: &str) {
         style(old_url).bright().green(),
         style(new_url).bright().green(),
         style(&repo.display()).bright().green(),
+    );
+}
+
+pub fn add_to_path_notice(path: &Path) {
+    let shell = var_os("SHELL")
+        .and_then(|s| s.into_string().ok())
+        .unwrap_or_default();
+
+    let command = if shell.contains("fish") {
+        format!("set -U fish_user_paths {} $fish_user_paths", path.display())
+    } else if shell.contains("bash") || shell.contains("zsh") {
+        let shell_cfg = if shell.contains("zsh") {
+            "~/.zshrc"
+        } else {
+            "~/.bash_profile"
+        };
+
+        format!(
+            "echo \"export PATH=\\$PATH:{}\" >> {} && source {}",
+            path.display(),
+            shell_cfg,
+            shell_cfg
+        )
+    } else {
+        format!(
+            "# Add this line to your shell config:\nexport PATH=$PATH:{}",
+            path.display()
+        )
+    };
+
+    println!(
+        "[{}] Please run the following command, or things will break:\n{}",
+        console::style("WARNING").bright().yellow().bold(),
+        console::style(command),
     );
 }

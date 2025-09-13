@@ -10,6 +10,7 @@ use flintpkg::{
     run::{install, quicklaunch::update_quicklaunch, start},
 };
 use std::{
+    env::var_os,
     fs,
     path::{Path, PathBuf},
 };
@@ -17,6 +18,7 @@ use std::{
 use crate::{
     config::{get_quicklaunch_dir, get_repos_dir, system_data_dir, system_quicklaunch_dir},
     crypto::signing::sign,
+    log::add_to_path_notice,
 };
 
 mod config;
@@ -231,6 +233,14 @@ async fn main() -> Result<()> {
             entrypoint,
             args,
         } => run_cmd(base_path, repo_name, package, entrypoint, args).await?,
+    }
+
+    if let Some(path) = var_os("PATH")
+        && !path
+            .to_string_lossy()
+            .contains(&*quicklaunch_bin_path.to_string_lossy())
+    {
+        add_to_path_notice(quicklaunch_bin_path);
     }
 
     Ok(())
