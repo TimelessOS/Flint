@@ -13,7 +13,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use crate::utils::config::get_config_dir;
+use crate::config::get_config_dir;
 
 /// Returns private key, generating it if necessary
 pub fn get_private_key(config_path: Option<&Path>) -> Result<SigningKey> {

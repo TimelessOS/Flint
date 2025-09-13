@@ -26,7 +26,7 @@ pub async fn update_repository(repo_path: &Path) -> Result<bool> {
 
         let new_manifest = update_manifest(repo_path, &manifest, &signature)?;
 
-        Ok(old_manifest == new_manifest)
+        Ok(old_manifest != new_manifest)
     } else {
         Ok(false)
     }

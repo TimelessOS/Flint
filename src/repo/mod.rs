@@ -115,13 +115,11 @@ pub fn remove_package(package_id: &str, repo_path: &Path) -> Result<()> {
 /// - Filesystem errors (Permissions most likely)
 /// - Repository doesn't exist
 /// - ID doesn't exist inside the Repository
-pub fn get_package(repo_path: &Path, id: &str) -> Result<PackageManifest> {
-    let repo_manifest = read_manifest(repo_path)?;
-
+pub fn get_package(repo_manifest: &RepoManifest, id: &str) -> Result<PackageManifest> {
     // Check ID's and aliases
-    for package in repo_manifest.packages {
+    for package in &repo_manifest.packages {
         if package.id == id || package.aliases.contains(&id.to_string()) {
-            return Ok(package);
+            return Ok(package.to_owned());
         }
     }
 
@@ -215,7 +213,7 @@ mod tests {
         create(repo_path)?;
 
         // Make sure errors on no package
-        assert!(get_package(repo_path, "test").is_err());
+        assert!(get_package(&read_manifest(repo_path)?, "test").is_err());
 
         let package_manifest = PackageManifest {
             aliases: vec!["example_alias".into()],
@@ -233,11 +231,11 @@ mod tests {
         };
 
         insert_package(&package_manifest, repo_path)?;
-        assert!(get_package(repo_path, "test").is_ok());
+        assert!(get_package(&read_manifest(repo_path)?, "test").is_ok());
         assert!(insert_package(&package_manifest, repo_path).is_ok());
 
         remove_package(&package_manifest.id, repo_path)?;
-        assert!(get_package(repo_path, "test").is_err());
+        assert!(get_package(&read_manifest(repo_path)?, "test").is_err());
 
         Ok(())
     }

@@ -13,7 +13,7 @@ use temp_dir::TempDir;
 use crate::{
     build::sources::get_sources,
     chunks::{load_tree, save_tree},
-    repo::{self, Metadata, PackageManifest, get_package, insert_package},
+    repo::{self, Metadata, PackageManifest, get_package, insert_package, read_manifest},
 };
 
 #[derive(serde::Deserialize, serde::Serialize, Clone)]
@@ -179,7 +179,8 @@ fn include(
     let dependency_build_manifest_path = build_manifest_parent.join(dependency);
     let dependency_build_manifest: BuildManifest =
         serde_yaml::from_str(&fs::read_to_string(dependency_build_manifest_path)?)?;
-    let dependency_manifest = get_package(repo_path, &dependency_build_manifest.id)?;
+    let repo_manifest = read_manifest(repo_path)?;
+    let dependency_manifest = get_package(&repo_manifest, &dependency_build_manifest.id)?;
 
     load_tree(
         path_to_include_at,

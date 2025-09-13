@@ -6,18 +6,21 @@ use dialoguer::{Select, theme::ColorfulTheme};
 use flintpkg::repo::network::add_repository;
 use flintpkg::{
     build::{build, bundle::build_bundle},
-    repo::{self, PackageManifest, get_package, remove_package, update_manifest},
-    run::{install, start},
+    repo::{self, PackageManifest, get_package, read_manifest, remove_package, update_manifest},
+    run::{install, quicklaunch::update_quicklaunch, start},
 };
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
-use crate::{crypto::signing::sign, utils::config::get_repos_dir};
+use crate::{
+    config::{get_quicklaunch_dir, get_repos_dir, system_data_dir, system_quicklaunch_dir},
+    crypto::signing::sign,
+};
 
+mod config;
 mod crypto;
-mod utils;
 
 /// Simple program to greet a person
 #[derive(Parser)]
@@ -139,46 +142,33 @@ enum Scope {
     System,
 }
 
-fn system_data_dir() -> PathBuf {
-    #[cfg(target_os = "linux")]
-    {
-        PathBuf::from("/var/lib/flint")
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        PathBuf::from("/Library/Application Support/flint")
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        PathBuf::from(r"C:\ProgramData\Flint")
-    }
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
 
     let scope = if args.system {
         Scope::System
-    } else if args.user {
-        Scope::User
     } else {
-        // default fallback, e.g. user
         Scope::User
     };
 
-    let base_path_buf = if scope == Scope::User {
+    let base_path = &if scope == Scope::User {
         get_repos_dir()?
     } else {
         system_data_dir()
     };
 
-    let base_path = &base_path_buf.as_path();
+    let quicklaunch_bin_path = &if scope == Scope::User {
+        get_quicklaunch_dir()?
+    } else {
+        system_quicklaunch_dir()
+    };
 
     match args.command {
-        Command::Repo { command } => repo_commands(base_path, command).await?,
+        Command::Repo { command } => {
+            repo_commands(base_path, command).await?;
+            update_quicklaunch(base_path, quicklaunch_bin_path)?;
+        }
 
         Command::Build {
             build_manifest_path,
@@ -227,36 +217,11 @@ async fn main() -> Result<()> {
 
         #[cfg(feature = "network")]
         Command::Update => {
-            use flintpkg::repo::network::update_repository;
+            use flintpkg::run::quicklaunch::update_quicklaunch;
 
-            for entry in base_path.read_dir()? {
-                use flintpkg::repo::get_all_installed_packages;
+            update_all_repos(base_path).await?;
 
-                let repo = entry?;
-                let repo_path = repo.path();
-                let repo_name = repo.file_name();
-
-                let update_changed_anything = update_repository(&repo_path).await?;
-
-                if update_changed_anything {
-                    println!("Updating Repository '{}'", repo_name.display());
-                } else {
-                    println!(
-                        "Skipping Repository '{}', no changes found",
-                        repo_name.display()
-                    );
-                }
-
-                for installed_package in get_all_installed_packages(&repo_path)? {
-                    let repo_package = get_package(&repo_path, &installed_package.id)?;
-
-                    if installed_package != repo_package {
-                        println!("Updating {}", repo_package.id);
-
-                        install(&repo_path, &repo_package.id).await?;
-                    }
-                }
-            }
+            update_quicklaunch(base_path, quicklaunch_bin_path)?;
         }
 
         Command::Run {
@@ -265,6 +230,44 @@ async fn main() -> Result<()> {
             entrypoint,
             args,
         } => run_cmd(base_path, repo_name, package, entrypoint, args).await?,
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "network")]
+async fn update_all_repos(base_path: &Path) -> Result<()> {
+    use flintpkg::repo::{get_all_installed_packages, network::update_repository};
+
+    for entry in base_path.read_dir()? {
+        use flintpkg::repo::read_manifest;
+
+        let repo = entry?;
+        let repo_path = repo.path();
+        let repo_name = repo.file_name();
+
+        let update_changed_anything = update_repository(&repo_path).await?;
+
+        if update_changed_anything {
+            println!("Updating Repository '{}'", repo_name.display());
+        } else {
+            println!(
+                "Skipping Repository '{}', no changes found",
+                repo_name.display()
+            );
+        }
+
+        let repo_manifest = read_manifest(&repo_path)?;
+
+        for installed_package in get_all_installed_packages(&repo_path)? {
+            let repo_package = get_package(&repo_manifest, &installed_package.id)?;
+
+            if installed_package != repo_package {
+                println!("Updating {}", repo_package.id);
+
+                install(&repo_path, &repo_package.id).await?;
+            }
+        }
     }
 
     Ok(())
@@ -283,11 +286,13 @@ async fn run_cmd(
         resolve_package(path, &package, |_| true)?.0
     };
 
+    let repo_manifest = read_manifest(&target_repo_path)?;
+
     let entrypoint = if let Some(e) = entrypoint {
         e
     } else {
         let package =
-            get_package(&target_repo_path, &package).context("Failed to read package manifest")?;
+            get_package(&repo_manifest, &package).context("Failed to read package manifest")?;
 
         let first_command = package
             .commands
@@ -354,7 +359,9 @@ where
 
     for repo_entry in fs::read_dir(path)? {
         let repo_dir = repo_entry?;
-        let package = get_package(&repo_dir.path(), package_id);
+        let repo_manifest = read_manifest(&repo_dir.path())?;
+
+        let package = get_package(&repo_manifest, package_id);
 
         if let Ok(package) = package {
             let filtered = filter(&repo_dir.path());

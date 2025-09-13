@@ -1,3 +1,5 @@
+pub mod quicklaunch;
+
 use anyhow::{Context, Result, bail};
 use std::{
     collections::HashMap,
@@ -79,10 +81,11 @@ pub fn start<S: AsRef<OsStr>>(
 /// - Filesystem errors (Out of space, Permissions)
 /// - Invalid Repository/Package manifest
 pub async fn install(repo_path: &Path, package_id: &str) -> Result<()> {
-    let package_manifest = repo::get_package(repo_path, package_id)
+    let repo_manifest = read_manifest(repo_path)?;
+
+    let package_manifest = repo::get_package(&repo_manifest, package_id)
         .with_context(|| "Failed to get package from Repository.")?;
     let installed_path = &repo_path.join("installed").join(package_id);
-    let repo_manifest = read_manifest(repo_path)?;
 
     // Get any chunks that are not installed
     #[cfg(feature = "network")]
