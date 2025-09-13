@@ -6,6 +6,7 @@ use dialoguer::{Select, theme::ColorfulTheme};
 use flintpkg::repo::network::add_repository;
 use flintpkg::{
     build::{build, bundle::build_bundle},
+    chunks::verify_all_chunks,
     repo::{self, PackageManifest, get_package, read_manifest, remove_package, update_manifest},
     run::{install, quicklaunch::update_quicklaunch, start},
 };
@@ -87,6 +88,12 @@ enum Command {
         entrypoint: Option<String>,
         /// Extra arguments
         args: Option<Vec<String>>,
+    },
+    /// Verify all chunks in a repository
+    VerifyChunks {
+        /// The Repository to verify chunks for
+        #[arg(long)]
+        repo_name: String,
     },
 }
 
@@ -233,6 +240,11 @@ async fn main() -> Result<()> {
             entrypoint,
             args,
         } => run_cmd(base_path, repo_name, package, entrypoint, args).await?,
+
+        Command::VerifyChunks { repo_name } => {
+            let target_repo_path = resolve_repo(base_path, &repo_name)?;
+            verify_all_chunks(&target_repo_path)?;
+        }
     }
 
     if let Some(path) = var_os("PATH")
