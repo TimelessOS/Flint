@@ -112,3 +112,61 @@ pub async fn install(repo_path: &Path, package_id: &str) -> Result<()> {
 
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::chunks::save_tree;
+    use crate::repo::{Metadata, PackageManifest, create, insert_package};
+    use std::fs;
+    use temp_dir::TempDir;
+
+    #[tokio::test]
+    async fn test_install() -> Result<()> {
+        let repo_dir = TempDir::new()?;
+        let repo_path = repo_dir.path();
+
+        create(repo_path)?;
+
+        // Create a temp tree
+        let temp_tree = TempDir::new()?;
+        fs::write(temp_tree.path().join("file1"), "content1")?;
+        fs::create_dir(temp_tree.path().join("dir"))?;
+        fs::write(temp_tree.path().join("dir/file2"), "content2")?;
+        let chunks = save_tree(
+            temp_tree.path(),
+            &repo_path.join("chunks"),
+            crate::chunks::HashKind::Blake3,
+        )?;
+
+        let package = PackageManifest {
+            id: "testpkg".to_string(),
+            aliases: vec![],
+            metadata: Metadata {
+                title: Some("Test".to_string()),
+                description: None,
+                homepage_url: None,
+                version: None,
+                license: None,
+            },
+            chunks,
+            commands: Vec::new(),
+            env: None,
+        };
+
+        // Insert package
+        insert_package(&package, repo_path)?;
+
+        // Now install
+        install(repo_path, "testpkg").await?;
+
+        // Check installed
+        let installed_path = repo_path.join("installed/testpkg");
+        assert!(installed_path.exists());
+        assert!(installed_path.join("file1").exists());
+        assert!(installed_path.join("dir/file2").exists());
+        assert!(installed_path.join("install.meta").exists());
+
+        Ok(())
+    }
+}

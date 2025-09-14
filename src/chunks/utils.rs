@@ -48,7 +48,7 @@ pub fn clean_used(repo_path: &Path) -> Result<()> {
 }
 
 /// Cleans a `chunk_store` of unused chunks, using the whitelist `allowed_chunks`
-fn clean(chunk_store_path: &Path, allowed_chunks: &[Chunk]) -> Result<()> {
+pub fn clean(chunk_store_path: &Path, allowed_chunks: &[Chunk]) -> Result<()> {
     let allowed: HashSet<String> = allowed_chunks
         .iter()
         .map(|c| get_chunk_filename(&c.hash, c.permissions))
@@ -61,10 +61,58 @@ fn clean(chunk_store_path: &Path, allowed_chunks: &[Chunk]) -> Result<()> {
             continue;
         };
 
-        if allowed.contains(file_name_str) {
+        if !allowed.contains(file_name_str) {
             fs::remove_file(entry.path())?;
         }
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use temp_dir::TempDir;
+
+    #[test]
+    fn test_clean() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let chunk_store_path = temp_dir.path();
+
+        // Create allowed chunks
+        let allowed_chunks = vec![
+            Chunk {
+                path: std::path::PathBuf::from("file1"),
+                hash: "hash1".to_string(),
+                permissions: 0o644,
+                size: 1,
+            },
+            Chunk {
+                path: std::path::PathBuf::from("file2"),
+                hash: "hash2".to_string(),
+                permissions: 0o644,
+                size: 1,
+            },
+        ];
+
+        // Create chunk files with correct names
+        let chunk1_name = get_chunk_filename("hash1", 0o644);
+        let chunk2_name = get_chunk_filename("hash2", 0o644);
+        let chunk3_name = get_chunk_filename("hash3", 0o644);
+
+        fs::write(chunk_store_path.join(&chunk1_name), "data1")?;
+        fs::write(chunk_store_path.join(&chunk2_name), "data2")?;
+        fs::write(chunk_store_path.join(&chunk3_name), "data3")?;
+
+        // Clean
+        clean(chunk_store_path, &allowed_chunks)?;
+
+        // Verify
+        assert!(chunk_store_path.join(&chunk1_name).exists());
+        assert!(chunk_store_path.join(&chunk2_name).exists());
+        assert!(!chunk_store_path.join(&chunk3_name).exists());
+
+        Ok(())
+    }
 }

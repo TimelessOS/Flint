@@ -52,3 +52,28 @@ fn compress(repo_path: &Path) -> Result<Vec<u8>> {
     tar.finish()?;
     Ok(tar.into_inner()?)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use temp_dir::TempDir;
+
+    #[test]
+    fn test_compress() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let repo_path = temp_dir.path();
+
+        // Create some files
+        fs::create_dir_all(repo_path.join("chunks"))?;
+        fs::write(repo_path.join("chunks/file1"), "data1")?;
+        fs::write(repo_path.join("manifest.yml"), "test manifest")?;
+
+        let compressed = compress(repo_path)?;
+
+        // Check that it's not empty
+        assert!(!compressed.is_empty());
+
+        // TODO: decompress and check
+        Ok(())
+    }
+}

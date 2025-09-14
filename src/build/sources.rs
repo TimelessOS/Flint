@@ -132,3 +132,36 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
         bail!("No extension on tar source url.")
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use temp_dir::TempDir;
+
+    #[test]
+    fn test_pull_local() -> Result<()> {
+        let source_temp = TempDir::new()?;
+        let target_temp = TempDir::new()?;
+
+        // Create source files
+        fs::write(source_temp.path().join("file1.txt"), "content1")?;
+        fs::create_dir(source_temp.path().join("subdir"))?;
+        fs::write(source_temp.path().join("subdir/file2.txt"), "content2")?;
+
+        pull_local(source_temp.path(), target_temp.path())?;
+
+        // Check copied
+        assert!(target_temp.path().join("file1.txt").exists());
+        assert!(target_temp.path().join("subdir/file2.txt").exists());
+        assert_eq!(
+            fs::read_to_string(target_temp.path().join("file1.txt"))?,
+            "content1"
+        );
+        assert_eq!(
+            fs::read_to_string(target_temp.path().join("subdir/file2.txt"))?,
+            "content2"
+        );
+
+        Ok(())
+    }
+}

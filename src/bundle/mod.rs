@@ -40,7 +40,7 @@ pub fn get_tar(data: &[u8]) -> Result<Vec<u8>> {
 ///
 /// - Header got too large and gave up
 pub fn pad_header(mut header_data: Vec<u8>) -> Result<Vec<u8>> {
-    for idx in 1..MAX_CHUNKS {
+    for idx in 0..MAX_CHUNKS {
         if header_data.len() < idx * CHUNK_SIZE {
             header_data.resize(idx * CHUNK_SIZE, 4);
 
@@ -91,4 +91,19 @@ pub fn extract_bundle(bundle_path: &Path, extract_path: &Path) -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pad_header() -> Result<()> {
+        let data = vec![1, 2, 3];
+        let padded = pad_header(data)?;
+        assert_eq!(padded.len(), CHUNK_SIZE);
+        assert_eq!(&padded[0..3], &[1, 2, 3]);
+        assert!(padded[3..].iter().all(|&x| x == 4));
+        Ok(())
+    }
 }

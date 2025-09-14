@@ -19,10 +19,43 @@ impl fmt::Display for HashKind {
     }
 }
 
+#[must_use]
 pub fn hash(hash_kind: HashKind, data: &[u8]) -> String {
     match hash_kind {
         HashKind::Blake3 => blake3::hash(data).to_hex().to_string(),
         HashKind::Sha512 => todo!(),
         HashKind::Sha256 => todo!(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_hash_blake3() {
+        let data = b"hello world";
+        let hash = hash(HashKind::Blake3, data);
+        // Blake3 hash of "hello world"
+        assert_eq!(hash, "d74981efa70a0c880b8d8c1985d075dbcbf679b99a5f9914e5aaf96b831a9e24");
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn test_hash_sha512_panics() {
+        let _ = hash(HashKind::Sha512, b"test");
+    }
+
+    #[test]
+    #[should_panic(expected = "not yet implemented")]
+    fn test_hash_sha256_panics() {
+        let _ = hash(HashKind::Sha256, b"test");
+    }
+
+    #[test]
+    fn test_hash_kind_display() {
+        assert_eq!(format!("{}", HashKind::Blake3), "Blake3");
+        assert_eq!(format!("{}", HashKind::Sha512), "Sha512");
+        assert_eq!(format!("{}", HashKind::Sha256), "Sha256");
     }
 }
