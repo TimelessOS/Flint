@@ -11,3 +11,7 @@ metadata:
 directory: target/release/flint
 build_script: build.sh
 commands: ["flint"]
+
+sources:
+  - kind: local
+    url: ./
