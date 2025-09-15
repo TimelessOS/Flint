@@ -39,6 +39,7 @@ pub fn get_quicklaunch_dir() -> Result<PathBuf> {
     Ok(config_dir)
 }
 
+#[must_use]
 pub fn system_data_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
@@ -56,6 +57,7 @@ pub fn system_data_dir() -> PathBuf {
     }
 }
 
+#[must_use]
 pub fn system_quicklaunch_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
