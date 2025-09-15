@@ -1,6 +1,5 @@
-use std::{collections::HashSet, fs, path::Path};
-
 use anyhow::Result;
+use std::{collections::HashSet, fs, path::Path};
 
 use crate::{
     chunks::{Chunk, get_chunk_filename},

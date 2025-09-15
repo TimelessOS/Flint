@@ -1,12 +1,12 @@
-use std::path::Path;
-
 use anyhow::Result;
+use std::path::Path;
+use temp_dir::TempDir;
+
 use flintpkg::{
     build::build,
     repo,
     run::{install, start},
 };
-use temp_dir::TempDir;
 
 #[tokio::test]
 async fn full_workflow_test() -> Result<()> {

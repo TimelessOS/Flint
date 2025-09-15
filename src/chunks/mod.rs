@@ -3,12 +3,11 @@ pub mod hash;
 pub mod network;
 mod tree;
 pub mod utils;
+pub use hash::HashKind;
+pub use tree::*;
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-
-pub use hash::HashKind;
-pub use tree::*;
 
 use crate::repo::read_manifest;
 

@@ -1,11 +1,10 @@
+use anyhow::{Result, bail};
 use std::{
     fs,
     io::{Cursor, Read},
     os::unix::fs::PermissionsExt,
     path::Path,
 };
-
-use anyhow::{Result, bail};
 
 /// How big of "chunks" do we search for a tar?
 /// Likely Tunable.

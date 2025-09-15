@@ -1,3 +1,10 @@
+mod manifest;
+mod manifest_io;
+#[cfg(feature = "network")]
+pub mod network;
+pub use manifest::*;
+pub use manifest_io::{read_manifest, update_manifest};
+
 use anyhow::{Result, bail};
 use std::fs::create_dir_all;
 use std::{fs, path::Path};
@@ -5,13 +12,6 @@ use std::{fs, path::Path};
 use crate::chunks::HashKind;
 use crate::crypto::key::{get_private_key, serialize_verifying_key};
 use crate::crypto::signing::sign;
-
-mod manifest;
-mod manifest_io;
-#[cfg(feature = "network")]
-pub mod network;
-pub use manifest::*;
-pub use manifest_io::{read_manifest, update_manifest};
 
 /// Creates a repository at `repo_path`
 ///
