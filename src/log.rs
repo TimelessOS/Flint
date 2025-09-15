@@ -1,5 +1,5 @@
-use crate::repo::PackageManifest;
 use console::style;
+use flintpkg::repo::PackageManifest;
 use std::{env::var_os, ffi::OsStr, path::Path};
 
 pub fn skipped_update(package_name: &str) {
@@ -43,29 +43,29 @@ pub fn updated_repo(repo: &OsStr) {
     );
 }
 
-pub fn added_repo(repo: &OsStr, public_key: &str) {
+pub fn added_repo(repo: &str, public_key: &str) {
     println!(
         "[{}] Added Repository {} with public key: {public_key}",
         style("NOTICE").bright().green(),
-        style(&repo.display()).bright().green(),
+        style(repo).bright().green(),
     );
 }
 
-pub fn cannot_update_repo(repo: &OsStr) {
+pub fn cannot_update_repo(repo: &str) {
     println!(
         "[{}] This Repository has no mirrors: {}",
         style("CAUTION").bright().yellow(),
-        style(&repo.display()).bright().green(),
+        style(&repo).bright().green(),
     );
 }
 
-pub fn update_redirect(repo: &OsStr, old_url: &str, new_url: &str) {
+pub fn update_redirect(repo: &str, old_url: &str, new_url: &str) {
     println!(
         "[{}] Updates will go to {} instead of {} for {}",
         style("CAUTION").bright().yellow(),
         style(old_url).bright().green(),
         style(new_url).bright().green(),
-        style(&repo.display()).bright().green(),
+        style(&repo).bright().green(),
     );
 }
 

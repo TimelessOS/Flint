@@ -1,5 +1,4 @@
-use anyhow::{Context, Result, bail};
-use dialoguer::{Select, theme::ColorfulTheme};
+use anyhow::{Context, Result};
 use std::{
     fs,
     path::{Path, PathBuf},
@@ -8,6 +7,11 @@ use std::{
 use crate::repo::{PackageManifest, get_package, read_manifest};
 
 /// Resolve a repo name into a safe absolute path under the given base `path`.
+///
+/// # Errors
+///
+/// - Path cannot be canonicalized (Perhaps doesn't exist on disk?)
+/// - Path is dangerous and escapes `base`
 pub fn resolve_repo(base: &Path, repo_name: &str) -> Result<PathBuf> {
     let candidate = base.join(repo_name);
 
@@ -26,11 +30,16 @@ pub fn resolve_repo(base: &Path, repo_name: &str) -> Result<PathBuf> {
 }
 
 /// Search all repositories for one matching a predicate
+///
+/// # Errors
+///
+/// - A Repository contains invalid data/signature
+/// - Filesystem errors
 pub fn resolve_package<F>(
     path: &Path,
     package_id: &str,
     filter: F,
-) -> Result<(PathBuf, PackageManifest)>
+) -> Result<Vec<(PathBuf, PackageManifest)>>
 where
     F: Fn(&Path) -> bool,
 {
@@ -50,37 +59,5 @@ where
         }
     }
 
-    if possible_repos.len() > 1 {
-        return choose_repo(possible_repos);
-    }
-
-    if let Some(possible_repo) = possible_repos.first() {
-        Ok(possible_repo.clone())
-    } else {
-        bail!("No Repositories contain that package.")
-    }
-}
-
-fn choose_repo(
-    possible_repos: Vec<(PathBuf, PackageManifest)>,
-) -> Result<(PathBuf, PackageManifest)> {
-    let items: Vec<String> = possible_repos
-        .iter()
-        .map(|(path, manifest)| {
-            format!(
-                "{} ({} {})",
-                path.file_name().unwrap().to_string_lossy(),
-                manifest.metadata.title.clone().unwrap_or_default(),
-                manifest.metadata.version.clone().unwrap_or_default()
-            )
-        })
-        .collect();
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Multiple repositories contain this package, pick one")
-        .items(&items)
-        .default(0)
-        .interact()?;
-
-    Ok(possible_repos.into_iter().nth(selection).unwrap())
+    Ok(possible_repos)
 }

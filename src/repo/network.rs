@@ -4,7 +4,6 @@ use std::path::Path;
 
 use crate::{
     crypto::{key::deserialize_verifying_key, signing::verify_signature},
-    log::{added_repo, cannot_update_repo, update_redirect},
     repo::{RepoManifest, manifest_io::atomic_replace, read_manifest, update_manifest},
 };
 
@@ -34,7 +33,6 @@ pub async fn update_repository(repo_path: &Path) -> Result<bool> {
 }
 
 /// Creates a Repository from a Remote Repository.
-/// WILL REQUIRE USER INTERVENTION WITHOUT A PUBLIC KEY.
 ///
 /// # Errors
 ///
@@ -58,17 +56,6 @@ pub async fn add_repository(
 
     // Make sure it actually deserializes
     let manifest: RepoManifest = serde_yaml::from_str(&raw_manifest)?;
-    let repo_name = repo_path.file_name().unwrap_or_default();
-
-    added_repo(repo_name, &manifest.public_key);
-
-    if let Some(first_mirror) = manifest.mirrors.first() {
-        if mirror != first_mirror {
-            update_redirect(repo_name, first_mirror, mirror);
-        }
-    } else {
-        cannot_update_repo(repo_name);
-    }
 
     // VERIFY IT MATCHES ITSELF. IMPORTANT.
     verify_signature(

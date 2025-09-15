@@ -54,12 +54,22 @@ pub async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             repo_name,
             remote_url,
         } => {
+            use crate::log::{added_repo, cannot_update_repo, update_redirect};
             use crate::repo::network::add_repository;
 
-            let repo_path = &path.join(repo_name);
+            let repo_path = &path.join(&repo_name);
             fs::create_dir_all(repo_path)?;
 
-            add_repository(repo_path, &remote_url, None).await?;
+            let manifest = add_repository(repo_path, &remote_url, None).await?;
+            added_repo(&repo_name, &manifest.public_key);
+
+            if let Some(first_mirror) = manifest.mirrors.first() {
+                if remote_url != *first_mirror {
+                    update_redirect(&repo_name, first_mirror, &remote_url);
+                }
+            } else {
+                cannot_update_repo(&repo_name);
+            }
         }
 
         RepoCommands::Remove { repo_name } => {
