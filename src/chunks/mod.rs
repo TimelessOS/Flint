@@ -11,6 +11,21 @@ use std::path::{Path, PathBuf};
 
 use crate::repo::read_manifest;
 
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
+pub struct Chunk {
+    /// Path
+    path: PathBuf,
+
+    /// Hash
+    hash: String,
+
+    /// Unix mode permissions
+    permissions: u32,
+
+    /// Expected size in kilobytes, rounded.
+    size: u64,
+}
+
 /// Verify all chunks in a repository
 ///
 /// # Errors
@@ -59,21 +74,6 @@ pub fn verify_all_chunks(repo_path: &Path) -> anyhow::Result<()> {
     }
 
     Ok(())
-}
-
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
-pub struct Chunk {
-    /// Path
-    path: PathBuf,
-
-    /// Hash
-    hash: String,
-
-    /// Unix mode permissions
-    permissions: u32,
-
-    /// Expected size in kilobytes, rounded.
-    size: u64,
 }
 
 fn get_chunk_filename(hash: &str, permissions: u32) -> String {
