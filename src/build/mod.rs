@@ -65,7 +65,11 @@ struct Source {
 ///
 /// - Filesystem (Out of Space, Permissions)
 /// - Build Script Failure
-pub async fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<PackageManifest> {
+pub async fn build(
+    build_manifest_path: &Path,
+    repo_path: &Path,
+    config_path: Option<&Path>,
+) -> Result<PackageManifest> {
     let build_dir = TempDir::new()?;
     let build_manifest_path = &build_manifest_path.canonicalize()?;
 
@@ -165,7 +169,7 @@ pub async fn build(build_manifest_path: &Path, repo_path: &Path) -> Result<Packa
         package_manifest.env = Some(envs);
     }
 
-    insert_package(&package_manifest, repo_path)?;
+    insert_package(&package_manifest, repo_path, config_path)?;
 
     Ok(package_manifest)
 }

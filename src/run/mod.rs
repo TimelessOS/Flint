@@ -126,7 +126,7 @@ mod tests {
         let repo_dir = TempDir::new()?;
         let repo_path = repo_dir.path();
 
-        create(repo_path)?;
+        create(repo_path, Some(repo_path))?;
 
         // Create a temp tree
         let temp_tree = TempDir::new()?;
@@ -155,7 +155,7 @@ mod tests {
         };
 
         // Insert package
-        insert_package(&package, repo_path)?;
+        insert_package(&package, repo_path, Some(repo_path))?;
 
         // Now install
         install(repo_path, "testpkg").await?;

@@ -19,7 +19,7 @@ pub use manifest_io::{read_manifest, read_manifest_signed, update_manifest};
 ///
 /// - File permission errors at `repo_path`
 /// - Key generation errors (If you do not already have a key)
-pub fn create(repo_path: &Path) -> Result<()> {
+pub fn create(repo_path: &Path, config_path: Option<&Path>) -> Result<()> {
     if repo_path.join("manifest.yml").exists() {
         bail!("Repository Already exists")
     }
@@ -38,13 +38,13 @@ pub fn create(repo_path: &Path) -> Result<()> {
         mirrors: Vec::new(),
         updates_url: None,
         packages: Vec::new(),
-        public_key: serialize_verifying_key(get_private_key(None)?.verifying_key())?,
+        public_key: serialize_verifying_key(get_private_key(config_path)?.verifying_key())?,
     };
 
     let manifest_serialized = serde_yaml::to_string(&manifest)?;
     fs::write(repo_path.join("manifest.yml"), &manifest_serialized)?;
 
-    sign(repo_path, &manifest_serialized)?;
+    sign(repo_path, &manifest_serialized, config_path)?;
 
     Ok(())
 }
@@ -53,8 +53,12 @@ pub fn create(repo_path: &Path) -> Result<()> {
 ///
 /// # Errors
 /// - Repo not signed with local signature
-pub fn insert_package(package_manifest: &PackageManifest, repo_path: &Path) -> Result<()> {
-    let _ = remove_package(&package_manifest.id, repo_path);
+pub fn insert_package(
+    package_manifest: &PackageManifest,
+    repo_path: &Path,
+    config_path: Option<&Path>,
+) -> Result<()> {
+    let _ = remove_package(&package_manifest.id, repo_path, config_path);
 
     let mut repo_manifest = read_manifest(repo_path)?;
 
@@ -82,7 +86,7 @@ pub fn insert_package(package_manifest: &PackageManifest, repo_path: &Path) -> R
 
     let repo_manifest_serialized = serde_yaml::to_string(&repo_manifest)?;
 
-    let signature = sign(repo_path, &repo_manifest_serialized)?;
+    let signature = sign(repo_path, &repo_manifest_serialized, config_path)?;
     update_manifest(repo_path, &repo_manifest_serialized, &signature.to_bytes())?;
 
     Ok(())
@@ -93,7 +97,11 @@ pub fn insert_package(package_manifest: &PackageManifest, repo_path: &Path) -> R
 /// # Errors
 /// - Repo not signed with local signature
 /// - Filesystem errors
-pub fn remove_package(package_id: &str, repo_path: &Path) -> Result<()> {
+pub fn remove_package(
+    package_id: &str,
+    repo_path: &Path,
+    config_path: Option<&Path>,
+) -> Result<()> {
     let mut repo_manifest = read_manifest(repo_path)?;
 
     repo_manifest
@@ -102,7 +110,7 @@ pub fn remove_package(package_id: &str, repo_path: &Path) -> Result<()> {
 
     let repo_manifest_serialized = serde_yaml::to_string(&repo_manifest)?;
 
-    let signature = sign(repo_path, &repo_manifest_serialized)?;
+    let signature = sign(repo_path, &repo_manifest_serialized, config_path)?;
     update_manifest(repo_path, &repo_manifest_serialized, &signature.to_bytes())?;
 
     Ok(())
@@ -210,7 +218,7 @@ mod tests {
         // Create repo
         let repo = TempDir::new()?;
         let repo_path = repo.path();
-        create(repo_path)?;
+        create(repo_path, Some(repo_path))?;
 
         // Make sure errors on no package
         assert!(get_package(&read_manifest(repo_path)?, "test").is_err());
@@ -230,11 +238,11 @@ mod tests {
             env: None,
         };
 
-        insert_package(&package_manifest, repo_path)?;
+        insert_package(&package_manifest, repo_path, Some(repo_path))?;
         assert!(get_package(&read_manifest(repo_path)?, "test").is_ok());
-        assert!(insert_package(&package_manifest, repo_path).is_ok());
+        assert!(insert_package(&package_manifest, repo_path, Some(repo_path)).is_ok());
 
-        remove_package(&package_manifest.id, repo_path)?;
+        remove_package(&package_manifest.id, repo_path, Some(repo_path))?;
         assert!(get_package(&read_manifest(repo_path)?, "test").is_err());
 
         Ok(())
@@ -246,7 +254,7 @@ mod tests {
         let repo_path = tmp.path();
 
         // Create repo
-        create(repo_path).unwrap();
+        create(repo_path, Some(repo_path)).unwrap();
 
         // Read unsigned manifest
         let manifest = read_manifest(repo_path).unwrap();
@@ -263,7 +271,7 @@ mod tests {
     fn test_tampered_manifest_fails() -> Result<()> {
         let tmp = TempDir::new()?;
         let repo_path = tmp.path();
-        create(repo_path)?;
+        create(repo_path, Some(repo_path))?;
 
         // Tamper with manifest.yml
         let mut contents = fs::read_to_string(repo_path.join("manifest.yml"))?;

@@ -184,7 +184,12 @@ async fn main() -> Result<()> {
             build_manifest_path,
             repo_name,
         } => {
-            build(&build_manifest_path, &resolve_repo(base_path, &repo_name)?).await?;
+            build(
+                &build_manifest_path,
+                &resolve_repo(base_path, &repo_name)?,
+                None,
+            )
+            .await?;
         }
 
         Command::Install { repo_name, package } => {
@@ -427,7 +432,7 @@ fn choose_repo(
 
 async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
     match command {
-        RepoCommands::Create { repo_name } => repo::create(&path.join(&repo_name))?,
+        RepoCommands::Create { repo_name } => repo::create(&path.join(&repo_name), None)?,
 
         RepoCommands::List => {
             let mut table = Table::new();
@@ -511,7 +516,7 @@ async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             }
 
             let manifest_serialized = &serde_yaml::to_string(&repo)?;
-            let signature = sign(repo_path, manifest_serialized)?;
+            let signature = sign(repo_path, manifest_serialized, None)?;
 
             update_manifest(repo_path, manifest_serialized, &signature.to_bytes())?;
         }
@@ -520,7 +525,7 @@ async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
             repo_name,
             package_id,
         } => {
-            remove_package(&package_id, &resolve_repo(path, &repo_name)?)?;
+            remove_package(&package_id, &resolve_repo(path, &repo_name)?, None)?;
         }
     }
 

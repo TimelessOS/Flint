@@ -1,6 +1,5 @@
-use std::{fs, path::Path};
-
 use anyhow::Result;
+use std::{fs, path::Path};
 
 use crate::{
     crypto::{key::deserialize_verifying_key, signing::verify_signature},
@@ -104,11 +103,9 @@ pub fn atomic_replace(base_path: &Path, filename: &str, contents: &[u8]) -> Resu
 
 #[cfg(test)]
 mod tests {
-    use temp_dir::TempDir;
-
-    use crate::{crypto::signing::sign, repo::create};
-
     use super::*;
+    use crate::{crypto::signing::sign, repo::create};
+    use temp_dir::TempDir;
 
     #[test]
     fn test_atomic_replace_basic() -> Result<()> {
@@ -129,7 +126,7 @@ mod tests {
     fn test_update_manifest_valid_and_invalid() -> Result<()> {
         let repo = TempDir::new()?;
         let repo_path = repo.path();
-        create(repo_path)?;
+        create(repo_path, Some(repo_path))?;
 
         let old_manifest = read_manifest(repo_path)?;
 
@@ -140,7 +137,7 @@ mod tests {
         let serialized = serde_yaml::to_string(&new_manifest)?;
 
         // Sign it with the right key
-        let signature = sign(repo_path, &serialized)?;
+        let signature = sign(repo_path, &serialized, Some(repo_path))?;
 
         // Update should succeed
         update_manifest(repo_path, &serialized, &signature.to_bytes())?;
@@ -159,7 +156,7 @@ mod tests {
     fn test_read_signed_manifest() -> Result<()> {
         let repo = TempDir::new()?;
         let repo_path = repo.path();
-        create(repo_path)?;
+        create(repo_path, Some(repo_path))?;
 
         let manifest = read_manifest(repo_path)?;
         let manifest_signed = read_manifest_signed(repo_path, &manifest.public_key)?;

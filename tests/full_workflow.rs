@@ -13,10 +13,10 @@ async fn full_workflow_test() -> Result<()> {
     let repo_dir = TempDir::new()?;
     let repo_path = repo_dir.path();
 
-    repo::create(repo_path)?;
+    repo::create(repo_path, None)?;
 
     let build_manifest_path = Path::new("build_manifest.yml");
-    build(build_manifest_path, repo_path).await?;
+    build(build_manifest_path, repo_path, None).await?;
 
     install(repo_path, "example").await?;
 
