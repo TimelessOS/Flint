@@ -30,13 +30,13 @@ pub fn get_config_dir() -> Result<PathBuf> {
 pub fn get_repos_dir() -> Result<PathBuf> {
     // Locate XDG data directory
     let base_dirs = BaseDirs::new().context("Could not find user directories")?;
-    let config_dir: PathBuf = base_dirs.data_dir().join("flint");
+    let repos_dir: PathBuf = base_dirs.data_dir().join("flint");
 
-    if !&config_dir.exists() {
-        fs::create_dir_all(&config_dir)?;
+    if !&repos_dir.exists() {
+        fs::create_dir_all(&repos_dir)?;
     }
 
-    Ok(config_dir)
+    Ok(repos_dir)
 }
 
 /// Gets the main quicklaunch directory
@@ -48,13 +48,13 @@ pub fn get_repos_dir() -> Result<PathBuf> {
 pub fn get_quicklaunch_dir() -> Result<PathBuf> {
     // Locate XDG data directory
     let base_dirs = BaseDirs::new().context("Could not find user directories")?;
-    let config_dir: PathBuf = base_dirs.data_dir().join("flint-quicklaunch");
+    let quicklaunch_dir: PathBuf = base_dirs.data_dir().join("flint-quicklaunch");
 
-    if !&config_dir.exists() {
-        fs::create_dir_all(&config_dir)?;
+    if !&quicklaunch_dir.exists() {
+        fs::create_dir_all(&quicklaunch_dir)?;
     }
 
-    Ok(config_dir)
+    Ok(quicklaunch_dir)
 }
 
 #[must_use]

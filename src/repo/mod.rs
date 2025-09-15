@@ -123,15 +123,18 @@ pub fn remove_package(
 /// - Filesystem errors (Permissions most likely)
 /// - Repository doesn't exist
 /// - ID doesn't exist inside the Repository
-pub fn get_package(repo_manifest: &RepoManifest, id: &str) -> Result<PackageManifest> {
+pub fn get_package(repo_manifest: &RepoManifest, package_id: &str) -> Result<PackageManifest> {
     // Check ID's and aliases
     for package in &repo_manifest.packages {
-        if package.id == id || package.aliases.contains(&id.to_string()) {
+        if package.id == package_id || package.aliases.contains(&package_id.to_string()) {
             return Ok(package.to_owned());
         }
     }
 
-    bail!("Could not find package '{}' found in Repository.", id);
+    bail!(
+        "Could not find package '{}' found in Repository.",
+        package_id
+    );
 }
 
 /// Gets an installed package manifest from a repository.

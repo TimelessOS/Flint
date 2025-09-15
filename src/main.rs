@@ -168,20 +168,20 @@ async fn main() -> Result<()> {
         system_data_dir()
     };
 
-    let quicklaunch_bin_path = &if scope == Scope::User {
+    let quicklaunch_path = &if scope == Scope::User {
         get_quicklaunch_dir()?
     } else {
         system_quicklaunch_dir()
     };
 
-    main_commands(base_path, quicklaunch_bin_path, args.command).await?;
+    main_commands(base_path, quicklaunch_path, args.command).await?;
 
     if let Some(path) = var_os("PATH")
         && !path
             .to_string_lossy()
-            .contains(&*quicklaunch_bin_path.to_string_lossy())
+            .contains(&*quicklaunch_path.to_string_lossy())
     {
-        add_to_path_notice(quicklaunch_bin_path);
+        add_to_path_notice(quicklaunch_path);
     }
 
     Ok(())
@@ -196,9 +196,9 @@ async fn update_all_repos(base_path: &Path) -> Result<()> {
         let repo_path = repo.path();
         let repo_name = repo.file_name();
 
-        let update_changed_anything = update_repository(&repo_path).await?;
+        let has_changed = update_repository(&repo_path).await?;
 
-        if update_changed_anything {
+        if has_changed {
             updated_repo(&repo_name);
         } else {
             skipped_update_repo(&repo_name);

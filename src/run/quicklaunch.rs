@@ -8,14 +8,12 @@ use crate::repo::read_manifest;
 /// # Errors
 ///
 /// - Filesystem
-/// - Filesystem
-/// - More Filesystem
 /// - Bad Repositories
-pub fn update_quicklaunch(repos_path: &Path, quicklaunch_bin_path: &Path) -> Result<()> {
+pub fn update_quicklaunch(repos_path: &Path, quicklaunch_path: &Path) -> Result<()> {
     let mut allowed = Vec::new();
 
-    for repo_entry in repos_path.read_dir()? {
-        let repo_path = repo_entry?.path();
+    for entry in repos_path.read_dir()? {
+        let repo_path = entry?.path();
 
         let manifest = read_manifest(&repo_path)?;
 
@@ -27,9 +25,10 @@ pub fn update_quicklaunch(repos_path: &Path, quicklaunch_bin_path: &Path) -> Res
 
                 allowed.push(command.to_owned());
 
-                let tmp_path = &quicklaunch_bin_path.join(format!("{}.new", command.display()));
-                let path = quicklaunch_bin_path.join(command);
+                let tmp_path = &quicklaunch_path.join(format!("{}.new", command.display()));
+                let path = quicklaunch_path.join(command);
 
+                // generate quicklaunch script
                 let executable_path = current_exe()
                     .with_context(|| "Could not get current executable path")?
                     .canonicalize()?;
@@ -43,6 +42,7 @@ pub fn update_quicklaunch(repos_path: &Path, quicklaunch_bin_path: &Path) -> Res
                 fs::write(tmp_path, quicklaunch_script)?;
                 fs::rename(tmp_path, &path)?;
 
+                // chmod 755
                 let mut perms = fs::metadata(&path)?.permissions();
                 perms.set_mode(0o755);
                 fs::set_permissions(&path, perms)?;
@@ -50,7 +50,8 @@ pub fn update_quicklaunch(repos_path: &Path, quicklaunch_bin_path: &Path) -> Res
         }
     }
 
-    for entry in quicklaunch_bin_path.read_dir()? {
+    // delete quicklaunch scripts for removed things
+    for entry in quicklaunch_path.read_dir()? {
         let file = entry?;
 
         if !allowed.contains(&file.file_name()) {

@@ -19,13 +19,13 @@ use crate::{
 
 pub async fn main_commands(
     base_path: &Path,
-    quicklaunch_bin_path: &Path,
+    quicklaunch_path: &Path,
     command: Command,
 ) -> Result<()> {
     match command {
         Command::Repo { command } => {
             repo_commands(base_path, command).await?;
-            update_quicklaunch(base_path, quicklaunch_bin_path)?;
+            update_quicklaunch(base_path, quicklaunch_path)?;
         }
 
         Command::Build {
@@ -42,7 +42,7 @@ pub async fn main_commands(
         Command::Bundle { command } => bundle_commands(base_path, command)?,
 
         #[cfg(feature = "network")]
-        Command::Update => update_cmd(base_path, quicklaunch_bin_path).await?,
+        Command::Update => update_cmd(base_path, quicklaunch_path).await?,
 
         Command::Run {
             repo_name,

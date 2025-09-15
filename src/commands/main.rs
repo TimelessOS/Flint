@@ -73,12 +73,12 @@ pub fn remove_cmd(base_path: &Path, repo_name: Option<String>, package_id: &str)
 }
 
 #[cfg(feature = "network")]
-pub async fn update_cmd(base_path: &Path, quicklaunch_bin_path: &Path) -> Result<()> {
+pub async fn update_cmd(base_path: &Path, quicklaunch_path: &Path) -> Result<()> {
     use crate::update_all_repos;
 
     update_all_repos(base_path).await?;
 
-    update_quicklaunch(base_path, quicklaunch_bin_path)
+    update_quicklaunch(base_path, quicklaunch_path)
 }
 
 pub async fn run_cmd(
@@ -149,6 +149,7 @@ pub fn verify_cmd(base_path: &Path, repo_name: &str) -> Result<()> {
     verify_all_chunks(&target_repo_path)
 }
 
+/// Lets the user choose a Repository from a list
 fn choose_repo(possible_repos: Vec<(PathBuf, PackageManifest)>) -> Result<PathBuf> {
     let items: Vec<String> = possible_repos
         .iter()
