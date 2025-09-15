@@ -1,10 +1,8 @@
-use std::{fs, path::Path};
-
-use anyhow::{Result, bail};
-use futures::{StreamExt, stream::FuturesUnordered};
-use reqwest;
-
 use crate::chunks::{Chunk, HashKind, get_chunk_filename, hash::hash};
+use anyhow::{Result, bail};
+use futures_util::{StreamExt, TryStreamExt};
+use reqwest;
+use std::{fs, path::Path};
 
 /// Installs a particular chunk from a particular mirror
 ///
@@ -47,44 +45,37 @@ pub async fn install_chunks(
     hash_kind: HashKind,
     chunk_store_path: &Path,
 ) -> Result<()> {
-    let mut tasks = FuturesUnordered::new();
+    fs::create_dir_all(chunk_store_path)?;
 
-    for chunk in chunks {
-        let mirrors = mirrors.to_vec();
-        let chunk_store_path = chunk_store_path.to_path_buf();
-        fs::create_dir_all(&chunk_store_path)?;
+    tokio_stream::iter(chunks.iter()) // clone so each task owns its Chunk
+        .map(|chunk| {
+            let mirrors = mirrors.to_vec();
+            let chunk_store_path = chunk_store_path.to_path_buf();
 
-        tasks.push(async move {
-            println!("Downloading chunk {}", chunk.hash);
-            let mut success = false;
+            async move {
+                println!("Downloading chunk {}", chunk.hash);
 
-            for mirror in mirrors {
-                match install_chunk(chunk, &mirror, hash_kind, &chunk_store_path).await {
-                    Ok(()) => {
-                        success = true;
-                        println!("Downloaded chunk {}", chunk.hash);
-                        break;
-                    }
-                    Err(err) => {
-                        eprintln!(
-                            "Failed to fetch chunk {} from mirror {}: {err}",
-                            &chunk.hash, mirror
-                        );
+                for mirror in mirrors {
+                    match install_chunk(chunk, &mirror, hash_kind, &chunk_store_path).await {
+                        Ok(()) => {
+                            println!("Downloaded chunk {}", chunk.hash);
+                            return Ok(());
+                        }
+                        Err(err) => {
+                            eprintln!(
+                                "Failed to fetch chunk {} from mirror {mirror}: {err}",
+                                &chunk.hash
+                            );
+                        }
                     }
                 }
-            }
 
-            if success {
-                Ok(())
-            } else {
-                bail!("All mirrors failed for chunk {}", &chunk.hash)
+                bail!("All mirrors failed for chunk {}", &chunk.hash);
             }
-        });
-    }
-
-    while let Some(result) = tasks.next().await {
-        result?; // propagate first hard failure
-    }
+        })
+        .buffer_unordered(8) // run up to 8 downloads at once
+        .try_collect::<()>() // fail-fast on first error
+        .await?;
 
     Ok(())
 }
