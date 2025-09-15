@@ -6,7 +6,7 @@ use ed25519_dalek::{
         spki::der::pem::LineEnding,
     },
 };
-use rand_core::{OsRng, TryRngCore};
+use rand_core::{OsRng, UnwrapErr};
 use std::{
     fs::{self, create_dir_all},
     os::unix::fs::PermissionsExt,
@@ -24,7 +24,7 @@ pub fn get_private_key(config_path: Option<&Path>) -> Result<SigningKey> {
     }
 
     if !path.exists() {
-        let mut csprng = OsRng.unwrap_err();
+        let mut csprng = UnwrapErr(OsRng);
         let signing_key = SigningKey::generate(&mut csprng);
 
         let pem = signing_key

@@ -38,14 +38,14 @@ pub fn verify_signature(
 mod tests {
     use super::*;
     use ed25519_dalek::SigningKey;
-    use rand_core::{OsRng, TryRngCore};
+    use rand_core::{OsRng, UnwrapErr};
 
     #[test]
     fn test_sign_and_verify() -> Result<()> {
         let manifest = "test manifest content";
 
         // Generate a key for test
-        let mut csprng = OsRng.unwrap_err();
+        let mut csprng = UnwrapErr(OsRng);
         let signing_key = SigningKey::generate(&mut csprng);
 
         // Sign manually
@@ -61,7 +61,7 @@ mod tests {
     fn test_verify_signature_invalid() {
         let manifest = "test";
         let invalid_sig = [0u8; 64];
-        let mut csprng = OsRng.unwrap_err();
+        let mut csprng = UnwrapErr(OsRng);
         let signing_key = SigningKey::generate(&mut csprng);
 
         let result = verify_signature(manifest, &invalid_sig, signing_key.verifying_key());
