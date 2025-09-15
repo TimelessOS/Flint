@@ -11,7 +11,7 @@ mod manifest_io;
 #[cfg(feature = "network")]
 pub mod network;
 pub use manifest::*;
-pub use manifest_io::{read_manifest, read_manifest_signed, update_manifest};
+pub use manifest_io::{read_manifest, update_manifest};
 
 /// Creates a repository at `repo_path`
 ///
