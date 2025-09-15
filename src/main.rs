@@ -9,26 +9,21 @@ mod repo;
 mod run;
 mod utils;
 
-use anyhow::{Context, Result, bail};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
-use dialoguer::{Select, theme::ColorfulTheme};
 use std::{
     env::var_os,
-    fs,
     path::{Path, PathBuf},
 };
 
 use crate::{
-    commands::{bundle::bundle_commands, repo::repo_commands},
-    log::add_to_path_notice,
+    commands::main_commands,
+    log::{add_to_path_notice, skipped_update_repo, updated_package, updated_repo},
 };
 use flintpkg::{
-    build::build,
-    chunks::verify_all_chunks,
     config::{get_quicklaunch_dir, get_repos_dir, system_data_dir, system_quicklaunch_dir},
-    repo::{PackageManifest, get_package, read_manifest},
-    run::{install, quicklaunch::update_quicklaunch, start},
-    utils::{resolve_package, resolve_repo},
+    repo::{get_package, read_manifest},
+    run::install,
 };
 
 /// Simple program to greet a person
@@ -179,86 +174,7 @@ async fn main() -> Result<()> {
         system_quicklaunch_dir()
     };
 
-    match args.command {
-        Command::Repo { command } => {
-            repo_commands(base_path, command).await?;
-            update_quicklaunch(base_path, quicklaunch_bin_path)?;
-        }
-
-        Command::Build {
-            build_manifest_path,
-            repo_name,
-        } => {
-            build(
-                &build_manifest_path,
-                &resolve_repo(base_path, &repo_name)?,
-                None,
-            )
-            .await?;
-        }
-
-        Command::Install { repo_name, package } => {
-            let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
-                resolve_repo(base_path, &repo_name)?
-            } else {
-                let possible_repos = resolve_package(base_path, &package, |_| true)?;
-
-                if possible_repos.len() > 1 {
-                    choose_repo(possible_repos)?
-                } else if let Some(possible_repo) = possible_repos.first() {
-                    possible_repo.0.clone()
-                } else {
-                    bail!("No Repositories contain that package.")
-                }
-            };
-
-            install(&target_repo_path, &package).await?;
-        }
-
-        Command::Remove {
-            repo_name,
-            package: id,
-        } => {
-            let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
-                resolve_repo(base_path, &repo_name)?
-            } else {
-                let possible_repos = resolve_package(base_path, &id, |repo_path| {
-                    repo_path.join("installed").join(&id).exists()
-                })?;
-
-                if possible_repos.len() > 1 {
-                    choose_repo(possible_repos)?
-                } else if let Some(possible_repo) = possible_repos.first() {
-                    possible_repo.0.clone()
-                } else {
-                    bail!("No Repositories contain that package.")
-                }
-            };
-
-            fs::remove_dir_all(target_repo_path.join("installed").join(&id))?;
-        }
-
-        Command::Bundle { command } => bundle_commands(base_path, command)?,
-
-        #[cfg(feature = "network")]
-        Command::Update => {
-            update_all_repos(base_path).await?;
-
-            update_quicklaunch(base_path, quicklaunch_bin_path)?;
-        }
-
-        Command::Run {
-            repo_name,
-            package,
-            entrypoint,
-            args,
-        } => run_cmd(base_path, repo_name, package, entrypoint, args).await?,
-
-        Command::VerifyChunks { repo_name } => {
-            let target_repo_path = resolve_repo(base_path, &repo_name)?;
-            verify_all_chunks(&target_repo_path)?;
-        }
-    }
+    main_commands(base_path, quicklaunch_bin_path, args.command).await?;
 
     if let Some(path) = var_os("PATH")
         && !path
@@ -273,7 +189,6 @@ async fn main() -> Result<()> {
 
 #[cfg(feature = "network")]
 async fn update_all_repos(base_path: &Path) -> Result<()> {
-    use crate::log::{skipped_update_repo, updated_package, updated_repo};
     use flintpkg::repo::{get_all_installed_packages, network::update_repository};
 
     for entry in base_path.read_dir()? {
@@ -303,89 +218,4 @@ async fn update_all_repos(base_path: &Path) -> Result<()> {
     }
 
     Ok(())
-}
-
-async fn run_cmd(
-    path: &Path,
-    repo_name: Option<String>,
-    package: String,
-    entrypoint: Option<String>,
-    args: Option<Vec<String>>,
-) -> Result<()> {
-    let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
-        resolve_repo(path, &repo_name)?
-    } else {
-        let possible_repos = resolve_package(path, &package, |_| true)?;
-
-        if possible_repos.len() > 1 {
-            choose_repo(possible_repos)?
-        } else if let Some(possible_repo) = possible_repos.first() {
-            possible_repo.0.clone()
-        } else {
-            bail!("No Repositories contain that package.")
-        }
-    };
-
-    let repo_manifest = read_manifest(&target_repo_path)?;
-
-    let entrypoint = if let Some(e) = entrypoint {
-        e
-    } else {
-        let package =
-            get_package(&repo_manifest, &package).context("Failed to read package manifest")?;
-
-        let first_command = package
-            .commands
-            .first()
-            .context("Package has no commands defined")?;
-
-        first_command
-            .to_str()
-            .context("First command path was not valid UTF-8")?
-            .to_string()
-    };
-
-    // Install if not installed
-    #[cfg(feature = "network")]
-    if !target_repo_path
-        .join("installed/")
-        .join(&package)
-        .join("install.meta")
-        .exists()
-    {
-        install(&target_repo_path, &package)
-            .await
-            .with_context(|| "Failed to install package.")?;
-    }
-
-    start(
-        &target_repo_path,
-        &package,
-        &entrypoint,
-        args.unwrap_or_default(),
-    )?;
-
-    Ok(())
-}
-
-fn choose_repo(possible_repos: Vec<(PathBuf, PackageManifest)>) -> Result<PathBuf> {
-    let items: Vec<String> = possible_repos
-        .iter()
-        .map(|(path, manifest)| {
-            format!(
-                "{} ({} {})",
-                path.file_name().unwrap().to_string_lossy(),
-                manifest.metadata.title.clone().unwrap_or_default(),
-                manifest.metadata.version.clone().unwrap_or_default()
-            )
-        })
-        .collect();
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Multiple repositories contain this package, pick one")
-        .items(&items)
-        .default(0)
-        .interact()?;
-
-    Ok(possible_repos.into_iter().nth(selection).unwrap().0)
 }
