@@ -3,6 +3,12 @@ use directories::BaseDirs;
 use std::fs;
 use std::path::PathBuf;
 
+/// Gets the default/main configuration directory
+///
+/// # Errors
+///
+/// - No valid home directory path could be retrieved from the operating system.
+/// - Config dir could not be created
 pub fn get_config_dir() -> Result<PathBuf> {
     // Locate XDG config directory
     let base_dirs = BaseDirs::new().context("Could not find user directories")?;
@@ -15,6 +21,12 @@ pub fn get_config_dir() -> Result<PathBuf> {
     Ok(config_dir)
 }
 
+/// Gets the default/main USER repositorys directory
+///
+/// # Errors
+///
+/// - No valid home directory path could be retrieved from the operating system.
+/// - Reposiorys dir could not be created
 pub fn get_repos_dir() -> Result<PathBuf> {
     // Locate XDG data directory
     let base_dirs = BaseDirs::new().context("Could not find user directories")?;
@@ -27,6 +39,12 @@ pub fn get_repos_dir() -> Result<PathBuf> {
     Ok(config_dir)
 }
 
+/// Gets the main quicklaunch directory
+///
+/// # Errors
+///
+/// - No valid home directory path could be retrieved from the operating system.
+/// - Quicklaunch dir could not be created
 pub fn get_quicklaunch_dir() -> Result<PathBuf> {
     // Locate XDG data directory
     let base_dirs = BaseDirs::new().context("Could not find user directories")?;
@@ -40,6 +58,7 @@ pub fn get_quicklaunch_dir() -> Result<PathBuf> {
 }
 
 #[must_use]
+/// Gets the SYSTEM-WIDE Repositorys path
 pub fn system_data_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
@@ -58,6 +77,7 @@ pub fn system_data_dir() -> PathBuf {
 }
 
 #[must_use]
+/// Gets the SYSTEM-WIDE quicklaunch path
 pub fn system_quicklaunch_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
