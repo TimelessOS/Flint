@@ -2,14 +2,6 @@ use console::style;
 use flintpkg::repo::PackageManifest;
 use std::{env::var_os, ffi::OsStr, path::Path};
 
-pub fn skipped_update(package_name: &str) {
-    println!(
-        "[{}] Skipped Updating {}",
-        style("SKIPPED").bright().black(),
-        style(package_name).bright().green()
-    );
-}
-
 pub fn skipped_update_repo(repo_name: &OsStr) {
     println!(
         "[{}] Skipped Updating Repository {}",
