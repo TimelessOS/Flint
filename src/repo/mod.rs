@@ -151,9 +151,12 @@ pub fn get_installed_package(repo_path: &Path, id: &str) -> Result<PackageManife
     // Check ID's and aliases
     for package in repo_manifest.packages {
         if package.id == id || package.aliases.contains(&id.to_string()) {
-            let installed_path = repo_path.join("installed").join(id).join("install.meta");
+            let installed_path = repo_path
+                .join("installed")
+                .join(&package.id)
+                .join("install.meta");
             if !installed_path.exists() {
-                bail!("Package '{}' is not installed.", id)
+                bail!("Package '{}' is not installed.", &package.id)
             }
 
             let package_manifest_serialized = fs::read_to_string(installed_path)?;

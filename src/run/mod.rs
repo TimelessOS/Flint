@@ -83,7 +83,7 @@ pub async fn install(repo_path: &Path, package_id: &str) -> Result<()> {
 
     let package_manifest = repo::get_package(&repo_manifest, package_id)
         .with_context(|| "Failed to get package from Repository.")?;
-    let installed_path = &repo_path.join("installed").join(package_id);
+    let installed_path = &repo_path.join("installed").join(&package_manifest.id);
 
     // Get any chunks that are not installed
     #[cfg(feature = "network")]
