@@ -105,14 +105,13 @@ pub async fn run_cmd(
     };
 
     let repo_manifest = read_manifest(&target_repo_path)?;
+    let package_manifest =
+        get_package(&repo_manifest, &package).context("Failed to read package manifest")?;
 
     let entrypoint = if let Some(e) = entrypoint {
         e
     } else {
-        let package =
-            get_package(&repo_manifest, &package).context("Failed to read package manifest")?;
-
-        let first_command = package
+        let first_command = package_manifest
             .commands
             .first()
             .context("Package has no commands defined")?;
@@ -138,7 +137,7 @@ pub async fn run_cmd(
 
     start(
         &target_repo_path,
-        &package,
+        package_manifest,
         &entrypoint,
         args.unwrap_or_default(),
     )?;

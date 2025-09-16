@@ -4,7 +4,7 @@ use temp_dir::TempDir;
 
 use flintpkg::{
     build::build,
-    repo,
+    repo::{self, get_installed_package},
     run::{install, start},
 };
 
@@ -20,12 +20,14 @@ async fn full_workflow_test() -> Result<()> {
 
     install(repo_path, "example").await?;
 
+    let manifest = get_installed_package(repo_path, "example")?;
+
     let args: Vec<&str> = vec!["--help"];
-    let result = start(repo_path, "example", "flint", args)?;
+    let result = start(repo_path, manifest.clone(), "flint", args)?;
     assert!(result.success());
 
     let args: Vec<&str> = vec![];
-    let result = start(repo_path, "example", "flint", args)?;
+    let result = start(repo_path, manifest, "flint", args)?;
     assert!(!result.success());
 
     Ok(())

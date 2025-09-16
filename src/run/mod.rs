@@ -13,7 +13,7 @@ use std::{
 use crate::chunks::install_tree;
 use crate::{
     chunks::load_tree,
-    repo::{self, read_manifest},
+    repo::{self, PackageManifest, read_manifest},
 };
 
 /// Starts a package from an entrypoint
@@ -26,13 +26,11 @@ use crate::{
 /// - Package is not installed
 pub fn start<S: AsRef<OsStr>>(
     repo_path: &Path,
-    package_id: &str,
+    package_manifest: PackageManifest,
     entrypoint: &str,
     args: Vec<S>,
 ) -> Result<ExitStatus> {
-    let package_manifest = repo::get_installed_package(repo_path, package_id)
-        .with_context(|| "Failed to get package")?;
-    let installed_path = &repo_path.join("installed").join(package_id);
+    let installed_path = &repo_path.join("installed").join(package_manifest.id);
 
     // Get all matching commands
     let matches: Vec<&PathBuf> = package_manifest
