@@ -4,6 +4,7 @@ use anyhow::Result;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use walkdir::WalkDir;
 
 pub async fn get_sources(path: &Path, source_path: &Path, sources: &[Source]) -> Result<()> {
     for source in sources {
@@ -88,12 +89,81 @@ fn pull_git(source: &Source, target_path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Extract tar contents to target dir without the toplevel dir
+fn unwrap_tar_contents(temp_dir: &Path, target_path: &Path) -> Result<()> {
+    // Check if there's a single top-level directory
+    let entries: Vec<_> = fs::read_dir(temp_dir)?
+        .filter_map(std::result::Result::ok)
+        .collect();
+
+    // If only a single dir, lets "unwrap" the tar
+    if entries.len() == 1 {
+        let entry = &entries[0];
+
+        if entry.file_type()?.is_dir() {
+            let source_dir = entry.path();
+
+            for file in WalkDir::new(&source_dir) {
+                let file = file?;
+                let file_path = file.path();
+                let relative_path = file_path.strip_prefix(&source_dir)?;
+                let destination_path = target_path.join(relative_path);
+
+                if file.file_type().is_file() {
+                    if let Some(parent) = destination_path.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+
+                    fs::copy(file_path, destination_path)?;
+                }
+            }
+        } else {
+            // incase your tar'ing a single file... strange.
+            let source_file = entry.path();
+            let file_name = source_file.file_name().unwrap();
+            let dest_path = target_path.join(file_name);
+
+            fs::copy(&source_file, &dest_path)?;
+        }
+    } else {
+        // Typical no unwrapping
+        for entry in entries {
+            let source_path = entry.path();
+            let file_name = source_path.file_name().unwrap();
+            let destination_path = target_path.join(file_name);
+
+            if entry.file_type()?.is_dir() {
+                // Copy directory recursively
+                for file in WalkDir::new(&source_path) {
+                    let file = file?;
+                    let file_path = file.path();
+                    let relative_path = file_path.strip_prefix(&source_path)?;
+                    let extract_path = destination_path.join(relative_path);
+
+                    if file.file_type().is_file() {
+                        if let Some(parent) = extract_path.parent() {
+                            fs::create_dir_all(parent)?;
+                        }
+
+                        fs::copy(file_path, extract_path)?;
+                    }
+                }
+            } else {
+                fs::copy(&source_path, &destination_path)?;
+            }
+        }
+    }
+
+    Ok(())
+}
+
 #[cfg(feature = "network")]
 async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
     use anyhow::bail;
     use flate2::read::GzDecoder;
     use std::io::Cursor;
     use tar::Archive;
+    use temp_dir::TempDir;
 
     if target_path.exists() {
         fs::remove_dir_all(target_path)?;
@@ -113,20 +183,29 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
         .with_context(|| "Failed to read response body")?;
     let cursor = Cursor::new(bytes);
 
+    // Create a temporary directory to unpack the tar
+    let temp_dir = TempDir::new()?;
+
     if let Some(extension) = Path::new(&source.url).extension() {
         // Detect gzip by extension
         if extension.eq_ignore_ascii_case("gz") || extension.eq_ignore_ascii_case("tgz") {
             let tar = GzDecoder::new(cursor);
             let mut archive = Archive::new(tar);
+
             archive
-                .unpack(target_path)
+                .unpack(temp_dir.path())
                 .with_context(|| format!("Failed to unpack gzip tar from {}", source.url))?;
         } else {
             let mut archive = Archive::new(cursor);
+
             archive
-                .unpack(target_path)
+                .unpack(temp_dir.path())
                 .with_context(|| format!("Failed to unpack tar from {}", source.url))?;
         }
+
+        // Extract and handle the tar contents
+        unwrap_tar_contents(temp_dir.path(), target_path)?;
+
         Ok(())
     } else {
         bail!("No extension on tar source url.")
@@ -161,6 +240,105 @@ mod tests {
             fs::read_to_string(target_temp.path().join("subdir/file2.txt"))?,
             "content2"
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_tar_contents_single_directory_unwrap() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let target_dir = TempDir::new()?;
+
+        // One top-level dir
+        let single_dir = &temp_dir.path().join("project");
+        fs::create_dir(single_dir)?;
+        fs::write(single_dir.join("file1.txt"), "content1")?;
+        fs::create_dir(single_dir.join("subdir"))?;
+        fs::write(single_dir.join("subdir/file2.txt"), "content2")?;
+
+        unwrap_tar_contents(temp_dir.path(), target_dir.path())?;
+
+        // Should unwrap the single directory
+        assert!(target_dir.path().join("file1.txt").exists());
+        assert!(target_dir.path().join("subdir/file2.txt").exists());
+        assert!(!target_dir.path().join("project").exists());
+
+        assert_eq!(
+            fs::read_to_string(target_dir.path().join("file1.txt"))?,
+            "content1"
+        );
+        assert_eq!(
+            fs::read_to_string(target_dir.path().join("subdir/file2.txt"))?,
+            "content2"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    // I hate any reason why this may be required, but unfortunately it may be.
+    fn test_extract_tar_contents_single_file() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let target_dir = TempDir::new()?;
+
+        fs::write(temp_dir.path().join("single"), "content")?;
+
+        unwrap_tar_contents(temp_dir.path(), target_dir.path())?;
+
+        // Should copy the single file directly
+        assert!(target_dir.path().join("single").exists());
+        assert_eq!(
+            fs::read_to_string(target_dir.path().join("single"))?,
+            "content"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_tar_contents_multiple_entries_no_unwrap() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let target_dir = TempDir::new()?;
+
+        fs::write(temp_dir.path().join("file1.txt"), "content1")?;
+        fs::create_dir(temp_dir.path().join("dir1"))?;
+        fs::write(temp_dir.path().join("dir1/file2.txt"), "content2")?;
+        fs::write(temp_dir.path().join("file3.txt"), "content3")?;
+
+        unwrap_tar_contents(temp_dir.path(), target_dir.path())?;
+
+        // Should copy all files without unwrapping
+        assert!(target_dir.path().join("file1.txt").exists());
+        assert!(target_dir.path().join("dir1/file2.txt").exists());
+        assert!(target_dir.path().join("file3.txt").exists());
+
+        assert_eq!(
+            fs::read_to_string(target_dir.path().join("file1.txt"))?,
+            "content1"
+        );
+        assert_eq!(
+            fs::read_to_string(target_dir.path().join("dir1/file2.txt"))?,
+            "content2"
+        );
+        assert_eq!(
+            fs::read_to_string(target_dir.path().join("file3.txt"))?,
+            "content3"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_extract_tar_contents_empty_directory() -> Result<()> {
+        let temp_dir = TempDir::new()?;
+        let target_dir = TempDir::new()?;
+
+        // Empty temp directory (simulating an empty tar)
+        unwrap_tar_contents(temp_dir.path(), target_dir.path())?;
+
+        // Should handle empty directory gracefully
+        let entries: Vec<_> = fs::read_dir(target_dir.path())?.collect();
+        assert_eq!(entries.len(), 0);
 
         Ok(())
     }
