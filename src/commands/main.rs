@@ -10,7 +10,7 @@ use flintpkg::{
     chunks::verify_all_chunks,
     repo::PackageManifest,
     repo::{get_package, read_manifest},
-    run::{install, quicklaunch::update_quicklaunch, start},
+    run::{install, start},
     utils::{resolve_package, resolve_repo},
 };
 
@@ -74,6 +74,8 @@ pub fn remove_cmd(base_path: &Path, repo_name: Option<String>, package_id: &str)
 
 #[cfg(feature = "network")]
 pub async fn update_cmd(base_path: &Path, quicklaunch_path: &Path) -> Result<()> {
+    use flintpkg::run::quicklaunch::update_quicklaunch;
+
     use crate::update_all_repos;
 
     update_all_repos(base_path).await?;

@@ -11,19 +11,13 @@ mod utils;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use std::{
-    env::var_os,
-    path::{Path, PathBuf},
-};
+#[cfg(feature = "network")]
+use std::path::Path;
+use std::{env::var_os, path::PathBuf};
 
-use crate::{
-    commands::main_commands,
-    log::{add_to_path_notice, skipped_update_repo, updated_package, updated_repo},
-};
-use flintpkg::{
-    config::{get_quicklaunch_dir, get_repos_dir, system_data_dir, system_quicklaunch_dir},
-    repo::{get_package, read_manifest},
-    run::install,
+use crate::{commands::main_commands, log::add_to_path_notice};
+use flintpkg::config::{
+    get_quicklaunch_dir, get_repos_dir, system_data_dir, system_quicklaunch_dir,
 };
 
 /// Simple program to greet a person
@@ -189,7 +183,11 @@ async fn main() -> Result<()> {
 
 #[cfg(feature = "network")]
 async fn update_all_repos(base_path: &Path) -> Result<()> {
-    use flintpkg::repo::{get_all_installed_packages, network::update_repository};
+    use crate::log::{skipped_update_repo, updated_package, updated_repo};
+    use flintpkg::repo::{
+        get_all_installed_packages, get_package, network::update_repository, read_manifest,
+    };
+    use flintpkg::run::install;
 
     for entry in base_path.read_dir()? {
         let repo = entry?;
