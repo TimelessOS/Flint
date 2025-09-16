@@ -21,7 +21,7 @@ fn main() -> Result<()> {
 
     let exit_code = start(
         repo_path,
-        &package_manifest.id,
+        package_manifest.clone(),
         entrypoint.to_str().unwrap(),
         env::args().collect(),
     )
