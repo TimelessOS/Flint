@@ -108,6 +108,10 @@ pub fn load_tree_unsafe(load_path: &Path, chunk_store_path: &Path, chunks: &[Chu
             fs::create_dir_all(parent)?;
         }
 
+        if extracted_path.exists() {
+            fs::remove_file(&extracted_path)?;
+        }
+
         fs::hard_link(&chunk_path, &extracted_path)
             .or_else(|_| fs::copy(&chunk_path, &extracted_path).map(|_| ()))
             .with_context(|| "Could not copy data while extracting")?;
