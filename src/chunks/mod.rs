@@ -7,6 +7,7 @@ pub use hash::HashKind;
 pub use tree::*;
 
 use std::collections::HashSet;
+use std::fs;
 use std::path::{Path, PathBuf};
 
 use crate::repo::read_manifest;
@@ -54,7 +55,7 @@ pub fn verify_all_chunks(repo_path: &Path) -> anyhow::Result<()> {
             continue;
         }
 
-        let contents = std::fs::read(&chunk_path)?;
+        let contents = fs::read(&chunk_path)?;
         let computed_hash = hash::hash(repo_manifest.hash_kind, &contents);
 
         if computed_hash == *expected_hash {
@@ -64,6 +65,8 @@ pub fn verify_all_chunks(repo_path: &Path) -> anyhow::Result<()> {
                 "Hash mismatch for chunk: {expected_hash} (expected {expected_hash}, got {computed_hash})"
             );
             failed += 1;
+            // delete the invalid chunk
+            fs::remove_file(&chunk_path)?;
         }
     }
 

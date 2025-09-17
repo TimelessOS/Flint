@@ -44,6 +44,7 @@ console = { version = "0.16.1", default-features = false, features = [
     "windows-console-colors",
 ] }
 futures-util = "0.3.31"
+filetime = "0.2.26"
 
 [dev-dependencies]
 httpmock = "0.7.0"

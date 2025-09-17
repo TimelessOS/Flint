@@ -977,6 +977,7 @@ dependencies = [
  "dialoguer",
  "directories",
  "ed25519-dalek",
+ "filetime",
  "flate2",
  "futures-util",
  "httpmock",

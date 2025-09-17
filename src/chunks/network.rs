@@ -17,6 +17,12 @@ pub async fn install_chunk(
     chunk_store_path: &Path,
 ) -> Result<()> {
     let chunk_name = get_chunk_filename(&chunk.hash, chunk.permissions);
+    let chunk_path = chunk_store_path.join(&chunk_name);
+
+    if chunk_path.exists() {
+        return Ok(());
+    }
+
     let url = format!("{mirror}/chunks/{chunk_name}");
     let request = reqwest::get(url).await?;
     let body = request.bytes().await?;
@@ -24,7 +30,7 @@ pub async fn install_chunk(
     let hash = hash(hash_kind, &body);
 
     if hash == chunk.hash {
-        fs::write(chunk_store_path.join(chunk_name), body)?;
+        fs::write(&chunk_path, body)?;
 
         Ok(())
     } else {

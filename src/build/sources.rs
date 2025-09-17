@@ -116,7 +116,7 @@ fn unwrap_tar_contents(temp_dir: &Path, target_path: &Path) -> Result<()> {
                         fs::create_dir_all(parent)?;
                     }
 
-                    fs::copy(file_path, destination_path)?;
+                    fs::rename(file_path, destination_path)?;
                 }
             }
         } else {
@@ -202,6 +202,9 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
         // Extract and handle the tar contents
         unwrap_tar_contents(temp_dir.path(), target_path)?;
 
+        // Autotools is very annoying.
+        fix_dir_times(target_path)?;
+
         Ok(())
     } else {
         bail!("No extension on tar source url.")
@@ -234,6 +237,33 @@ async fn try_pull_cache(url: &str) -> Result<PathBuf> {
     }
 
     Ok(cache_path)
+}
+
+fn fix_dir_times(path: &Path) -> std::io::Result<()> {
+    use filetime::{FileTime, set_file_mtime};
+    for entry in fs::read_dir(path)? {
+        let file = entry?;
+        let path = file.path();
+
+        if path.is_dir() {
+            fix_dir_times(&path)?;
+
+            // find latest child mtime
+            let mut latest = FileTime::from_unix_time(0, 0);
+            for child in fs::read_dir(&path)? {
+                let child = child?;
+                let meta = child.metadata()?;
+                let mtime = FileTime::from_last_modification_time(&meta);
+
+                if mtime > latest {
+                    latest = mtime;
+                }
+            }
+
+            set_file_mtime(&path, latest)?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
