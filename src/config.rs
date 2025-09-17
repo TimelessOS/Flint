@@ -57,6 +57,24 @@ pub fn get_quicklaunch_dir() -> Result<PathBuf> {
     Ok(quicklaunch_dir)
 }
 
+/// Gets the build cache directory
+///
+/// # Errors
+///
+/// - No valid home directory path could be retrieved from the operating system.
+/// - Cache dir could not be created
+pub fn get_build_cache_dir() -> Result<PathBuf> {
+    // Locate XDG config directory
+    let base_dirs = BaseDirs::new().context("Could not find user directories")?;
+    let build_cache_dir: PathBuf = base_dirs.cache_dir().join("flint");
+
+    if !&build_cache_dir.exists() {
+        fs::create_dir_all(&build_cache_dir)?;
+    }
+
+    Ok(build_cache_dir)
+}
+
 #[must_use]
 /// Gets the SYSTEM-WIDE Repositorys path
 pub fn system_data_dir() -> PathBuf {

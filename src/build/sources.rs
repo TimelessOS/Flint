@@ -3,6 +3,8 @@ use anyhow::Context;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
+#[cfg(feature = "network")]
+use std::path::PathBuf;
 use std::process::Command;
 use walkdir::WalkDir;
 
@@ -161,27 +163,21 @@ fn unwrap_tar_contents(temp_dir: &Path, target_path: &Path) -> Result<()> {
 async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
     use anyhow::bail;
     use flate2::read::GzDecoder;
-    use std::io::Cursor;
+    use std::fs::File;
     use tar::Archive;
     use temp_dir::TempDir;
 
+    // downloads/gets the cache
+    let get_cache_path = try_pull_cache(&source.url).await?;
+    let get_cache = File::open(get_cache_path)?;
+
+    // make sure nothings already there
+    // incase extracting to mpc in gcc for example
     if target_path.exists() {
         fs::remove_dir_all(target_path)?;
     }
 
     fs::create_dir_all(target_path)?;
-
-    let res = reqwest::get(&source.url)
-        .await
-        .with_context(|| format!("Failed to fetch tarball from {}", source.url))?
-        .error_for_status()
-        .with_context(|| format!("HTTP error fetching {}", source.url))?;
-
-    let bytes = res
-        .bytes()
-        .await
-        .with_context(|| "Failed to read response body")?;
-    let cursor = Cursor::new(bytes);
 
     // Create a temporary directory to unpack the tar
     let temp_dir = TempDir::new()?;
@@ -189,14 +185,14 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
     if let Some(extension) = Path::new(&source.url).extension() {
         // Detect gzip by extension
         if extension.eq_ignore_ascii_case("gz") || extension.eq_ignore_ascii_case("tgz") {
-            let tar = GzDecoder::new(cursor);
+            let tar = GzDecoder::new(get_cache);
             let mut archive = Archive::new(tar);
 
             archive
                 .unpack(temp_dir.path())
                 .with_context(|| format!("Failed to unpack gzip tar from {}", source.url))?;
         } else {
-            let mut archive = Archive::new(cursor);
+            let mut archive = Archive::new(get_cache);
 
             archive
                 .unpack(temp_dir.path())
@@ -210,6 +206,34 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
     } else {
         bail!("No extension on tar source url.")
     }
+}
+
+#[cfg(feature = "network")]
+async fn try_pull_cache(url: &str) -> Result<PathBuf> {
+    use crate::config::get_build_cache_dir;
+    use blake3::hash;
+
+    // example path: $HOME/.cache/flint/0823unrb98e7f8972b958573129v857hn92385
+    let cache_str = hash(url.as_bytes()).to_string();
+    let cache_path = get_build_cache_dir()?.join(cache_str);
+
+    // Download it
+    if !cache_path.exists() {
+        let res = reqwest::get(url)
+            .await
+            .with_context(|| format!("Failed to fetch tarball from {url}"))?
+            .error_for_status()
+            .with_context(|| format!("HTTP error fetching {url}"))?;
+
+        let bytes = res
+            .bytes()
+            .await
+            .with_context(|| "Failed to read response body")?;
+
+        fs::write(&cache_path, bytes)?;
+    }
+
+    Ok(cache_path)
 }
 
 #[cfg(test)]
