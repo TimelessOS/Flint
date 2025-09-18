@@ -162,8 +162,11 @@ fn unwrap_tar_contents(temp_dir: &Path, target_path: &Path) -> Result<()> {
 #[cfg(feature = "network")]
 async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
     use anyhow::bail;
+    use bzip2::read::BzDecoder;
     use flate2::read::GzDecoder;
+    use liblzma::read::XzDecoder;
     use std::fs::File;
+    use std::io::Read;
     use tar::Archive;
     use temp_dir::TempDir;
 
@@ -183,21 +186,22 @@ async fn pull_tar(source: &Source, target_path: &Path) -> Result<()> {
     let temp_dir = TempDir::new()?;
 
     if let Some(extension) = Path::new(&source.url).extension() {
-        // Detect gzip by extension
-        if extension.eq_ignore_ascii_case("gz") || extension.eq_ignore_ascii_case("tgz") {
-            let tar = GzDecoder::new(get_cache);
-            let mut archive = Archive::new(tar);
+        // Detect compression by extension
+        let tar: Box<dyn Read> =
+            if extension.eq_ignore_ascii_case("gz") || extension.eq_ignore_ascii_case("tgz") {
+                Box::new(GzDecoder::new(get_cache))
+            } else if extension.eq_ignore_ascii_case("xz") {
+                Box::new(XzDecoder::new(get_cache))
+            } else if extension.eq_ignore_ascii_case("bz2") {
+                Box::new(BzDecoder::new(get_cache))
+            } else {
+                Box::new(get_cache)
+            };
 
-            archive
-                .unpack(temp_dir.path())
-                .with_context(|| format!("Failed to unpack gzip tar from {}", source.url))?;
-        } else {
-            let mut archive = Archive::new(get_cache);
-
-            archive
-                .unpack(temp_dir.path())
-                .with_context(|| format!("Failed to unpack tar from {}", source.url))?;
-        }
+        let mut archive = Archive::new(tar);
+        archive
+            .unpack(temp_dir.path())
+            .with_context(|| format!("Failed to unpack gzip tar from {}", source.url))?;
 
         // Extract and handle the tar contents
         unwrap_tar_contents(temp_dir.path(), target_path)?;
