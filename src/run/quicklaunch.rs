@@ -33,7 +33,7 @@ pub fn update_quicklaunch(repos_path: &Path, quicklaunch_path: &Path) -> Result<
                     .with_context(|| "Could not get current executable path")?
                     .canonicalize()?;
                 let quicklaunch_script = format!(
-                    "#!/bin/bash\n{} run {} {} $@",
+                    "#!/bin/bash\n{} run {} -- {} $@",
                     executable_path.display(),
                     package.id,
                     command.display()
