@@ -3,7 +3,7 @@ pub mod main;
 pub mod repo;
 
 use anyhow::Result;
-use flintpkg::run::quicklaunch::update_quicklaunch;
+use flintpkg::{chunks::utils::clean_used, run::quicklaunch::update_quicklaunch};
 use std::path::Path;
 
 #[cfg(feature = "network")]
@@ -71,6 +71,8 @@ pub async fn main_commands(
         }
 
         Command::VerifyChunks { repo_name } => verify_cmd(base_path, &repo_name, chunk_store_path)?,
+
+        Command::Clean => clean_used(base_path, chunk_store_path)?,
     }
 
     Ok(())

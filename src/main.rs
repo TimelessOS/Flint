@@ -90,6 +90,8 @@ enum Command {
         #[arg(long)]
         repo_name: String,
     },
+    /// Removes all not currently installed chunks, even if they are still in the Repository
+    Clean,
 }
 
 #[derive(Subcommand)]
