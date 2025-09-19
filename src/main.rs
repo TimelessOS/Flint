@@ -193,6 +193,7 @@ async fn update_all_repos(base_path: &Path, chunk_store_path: &Path) -> Result<(
     use crate::log::{skipped_update_repo, updated_package, updated_repo};
     use flintpkg::repo::{
         get_all_installed_packages, get_package, network::update_repository, read_manifest,
+        remove_package,
     };
     use flintpkg::run::install;
 
@@ -212,12 +213,14 @@ async fn update_all_repos(base_path: &Path, chunk_store_path: &Path) -> Result<(
         let repo_manifest = read_manifest(&repo_path)?;
 
         for installed_package in get_all_installed_packages(&repo_path)? {
-            let repo_package = get_package(&repo_manifest, &installed_package.id)?;
+            if let Ok(repo_package) = get_package(&repo_manifest, &installed_package.id) {
+                if installed_package != repo_package {
+                    updated_package(&repo_package);
 
-            if installed_package != repo_package {
-                updated_package(&repo_package);
-
-                install(&repo_path, &repo_package.id, chunk_store_path).await?;
+                    install(&repo_path, &repo_package.id, chunk_store_path).await?;
+                }
+            } else {
+                remove_package(&installed_package.id, &repo_path, None)?;
             }
         }
     }
