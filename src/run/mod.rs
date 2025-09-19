@@ -131,7 +131,7 @@ mod tests {
         fs::write(temp_tree.path().join("dir/file2"), "content2")?;
         let chunks = save_tree(
             temp_tree.path(),
-            &repo_path.join("chunks"),
+            chunks_path,
             crate::chunks::HashKind::Blake3,
         )?;
 
