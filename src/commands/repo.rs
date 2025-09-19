@@ -1,6 +1,6 @@
 use anyhow::{Result, anyhow};
 use comfy_table::Table;
-use std::{fs, path::Path};
+use std::{fs, os::unix::fs::symlink, path::Path};
 
 use crate::{
     RepoCommands,
@@ -9,9 +9,18 @@ use crate::{
     utils::resolve_repo,
 };
 
-pub async fn repo_commands(path: &Path, chunks_path: &Path, command: RepoCommands) -> Result<()> {
+pub async fn repo_commands(
+    path: &Path,
+    chunk_store_path: &Path,
+    command: RepoCommands,
+) -> Result<()> {
     match command {
-        RepoCommands::Create { repo_name } => repo::create(&path.join(&repo_name), None)?,
+        RepoCommands::Create { repo_name } => {
+            let repo_path = &path.join(&repo_name);
+
+            repo::create(repo_path, None)?;
+            symlink(Path::new("../../chunks"), repo_path.join("chunks"))?;
+        }
 
         RepoCommands::List => {
             let mut table = Table::new();
