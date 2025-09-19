@@ -1,5 +1,6 @@
 use anyhow::{Result, anyhow};
 use comfy_table::Table;
+use flintpkg::chunks::utils::clean_unused;
 use std::{fs, os::unix::fs::symlink, path::Path};
 
 use crate::{
@@ -10,13 +11,13 @@ use crate::{
 };
 
 pub async fn repo_commands(
-    path: &Path,
+    base_path: &Path,
     chunk_store_path: &Path,
     command: RepoCommands,
 ) -> Result<()> {
     match command {
         RepoCommands::Create { repo_name } => {
-            let repo_path = &path.join(&repo_name);
+            let repo_path = &base_path.join(&repo_name);
 
             repo::create(repo_path, None)?;
             symlink(Path::new("../../chunks"), repo_path.join("chunks"))?;
@@ -34,7 +35,7 @@ pub async fn repo_commands(
                 "Version",
             ]);
 
-            for repo_entry in fs::read_dir(path)? {
+            for repo_entry in fs::read_dir(base_path)? {
                 let repo_dir = repo_entry?;
                 let repo_name = repo_dir.file_name();
                 let repo_name_str = repo_name
@@ -64,7 +65,7 @@ pub async fn repo_commands(
             use crate::log::{added_repo, cannot_update_repo, update_redirect};
             use crate::repo::network::add_repository;
 
-            let repo_path = &path.join(&repo_name);
+            let repo_path = &base_path.join(&repo_name);
             fs::create_dir_all(repo_path)?;
 
             let manifest = add_repository(repo_path, &remote_url, None).await?;
@@ -80,7 +81,7 @@ pub async fn repo_commands(
         }
 
         RepoCommands::Remove { repo_name } => {
-            fs::remove_dir_all(resolve_repo(path, &repo_name)?)?;
+            fs::remove_dir_all(resolve_repo(base_path, &repo_name)?)?;
         }
 
         RepoCommands::Update {
@@ -91,7 +92,7 @@ pub async fn repo_commands(
             repo_name,
             mirrors,
         } => {
-            let repo_path = &resolve_repo(path, &repo_name)?;
+            let repo_path = &resolve_repo(base_path, &repo_name)?;
             let mut repo = read_manifest(repo_path)?;
 
             if title.is_some() {
@@ -123,7 +124,8 @@ pub async fn repo_commands(
             repo_name,
             package_id,
         } => {
-            remove_package(&package_id, &resolve_repo(path, &repo_name)?, None)?;
+            remove_package(&package_id, &resolve_repo(base_path, &repo_name)?, None)?;
+            clean_unused(base_path, chunk_store_path)?;
         }
     }
 
