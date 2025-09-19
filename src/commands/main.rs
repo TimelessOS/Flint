@@ -7,9 +7,8 @@ use std::{
 
 use flintpkg::{
     build::build,
-    chunks::verify_all_chunks,
-    repo::PackageManifest,
-    repo::{get_package, read_manifest},
+    chunks::{utils::clean_unused, verify_all_chunks},
+    repo::{PackageManifest, get_package, read_manifest},
     run::{install, start},
     utils::{resolve_package, resolve_repo},
 };
@@ -23,6 +22,8 @@ pub async fn build_cmd(
     let repo_path = resolve_repo(base_path, repo_name)?;
 
     build(build_manifest_path, &repo_path, None, chunk_store_path).await?;
+
+    clean_unused(base_path, chunk_store_path)?;
 
     Ok(())
 }
@@ -86,7 +87,8 @@ pub async fn update_cmd(
 
     update_all_repos(base_path, chunk_store_path).await?;
 
-    update_quicklaunch(base_path, quicklaunch_path)
+    update_quicklaunch(base_path, quicklaunch_path)?;
+    clean_unused(base_path, chunk_store_path)
 }
 
 pub async fn run_cmd(
@@ -154,7 +156,8 @@ pub async fn run_cmd(
 
 pub fn verify_cmd(base_path: &Path, repo_name: &str, chunk_store_path: &Path) -> Result<()> {
     let target_repo_path = resolve_repo(base_path, repo_name)?;
-    verify_all_chunks(&target_repo_path, chunk_store_path)
+    verify_all_chunks(&target_repo_path, chunk_store_path)?;
+    clean_unused(base_path, chunk_store_path)
 }
 
 /// Lets the user choose a Repository from a list
