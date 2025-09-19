@@ -69,6 +69,7 @@ pub async fn build(
     build_manifest_path: &Path,
     repo_path: &Path,
     config_path: Option<&Path>,
+    chunk_store_path: &Path,
 ) -> Result<PackageManifest> {
     let build_dir = TempDir::new()?;
     let build_manifest_path = &build_manifest_path.canonicalize()?;
@@ -96,6 +97,7 @@ pub async fn build(
                 dependency,
                 build_dir.path(),
                 repo_path,
+                chunk_store_path,
             )?;
 
             envs.extend(result);
@@ -109,6 +111,7 @@ pub async fn build(
                 dependency,
                 build_dir.path(),
                 repo_path,
+                chunk_store_path,
             )?;
 
             envs.extend(result);
@@ -148,11 +151,17 @@ pub async fn build(
     let mut included_chunks = Vec::new();
     if let Some(packages) = &build_manifest.include {
         for dependency in packages {
-            include(build_manifest_parent, dependency, &out_dir, repo_path)?;
+            include(
+                build_manifest_parent,
+                dependency,
+                &out_dir,
+                repo_path,
+                chunk_store_path,
+            )?;
         }
     }
 
-    let chunks = save_tree(&out_dir, &repo_path.join("chunks"), repo_manifest.hash_kind)?;
+    let chunks = save_tree(&out_dir, chunk_store_path, repo_manifest.hash_kind)?;
 
     included_chunks.extend(chunks);
 
@@ -179,6 +188,7 @@ fn include(
     dependency: &str,
     path_to_include_at: &Path,
     repo_path: &Path,
+    chunk_store_path: &Path,
 ) -> Result<HashMap<String, String>> {
     let dependency_build_manifest_path = build_manifest_parent.join(dependency);
     let dependency_build_manifest: BuildManifest =
@@ -188,7 +198,7 @@ fn include(
 
     load_tree(
         path_to_include_at,
-        &repo_path.join("chunks"),
+        chunk_store_path,
         &dependency_manifest.chunks,
     )?;
 

@@ -18,10 +18,11 @@ pub async fn build_cmd(
     base_path: &Path,
     repo_name: &str,
     build_manifest_path: &Path,
+    chunk_store_path: &Path,
 ) -> Result<()> {
     let repo_path = resolve_repo(base_path, repo_name)?;
 
-    build(build_manifest_path, &repo_path, None).await?;
+    build(build_manifest_path, &repo_path, None, chunk_store_path).await?;
 
     Ok(())
 }
@@ -29,6 +30,7 @@ pub async fn build_cmd(
 pub async fn install_cmd(
     base_path: &Path,
     repo_name: Option<String>,
+    chunk_store_path: &Path,
     package_id: &str,
 ) -> Result<()> {
     let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
@@ -45,7 +47,7 @@ pub async fn install_cmd(
         }
     };
 
-    install(&target_repo_path, package_id).await?;
+    install(&target_repo_path, package_id, chunk_store_path).await?;
 
     Ok(())
 }
@@ -73,12 +75,16 @@ pub fn remove_cmd(base_path: &Path, repo_name: Option<String>, package_id: &str)
 }
 
 #[cfg(feature = "network")]
-pub async fn update_cmd(base_path: &Path, quicklaunch_path: &Path) -> Result<()> {
+pub async fn update_cmd(
+    base_path: &Path,
+    quicklaunch_path: &Path,
+    chunk_store_path: &Path,
+) -> Result<()> {
     use flintpkg::run::quicklaunch::update_quicklaunch;
 
     use crate::update_all_repos;
 
-    update_all_repos(base_path).await?;
+    update_all_repos(base_path, chunk_store_path).await?;
 
     update_quicklaunch(base_path, quicklaunch_path)
 }
@@ -86,6 +92,7 @@ pub async fn update_cmd(base_path: &Path, quicklaunch_path: &Path) -> Result<()>
 pub async fn run_cmd(
     path: &Path,
     repo_name: Option<String>,
+    chunk_store_path: &Path,
     package: String,
     entrypoint: Option<String>,
     args: Option<Vec<String>>,
@@ -130,7 +137,7 @@ pub async fn run_cmd(
         .join("install.meta")
         .exists()
     {
-        install(&target_repo_path, &package)
+        install(&target_repo_path, &package, chunk_store_path)
             .await
             .with_context(|| "Failed to install package.")?;
     }
@@ -145,9 +152,9 @@ pub async fn run_cmd(
     Ok(())
 }
 
-pub fn verify_cmd(base_path: &Path, repo_name: &str) -> Result<()> {
+pub fn verify_cmd(base_path: &Path, repo_name: &str, chunk_store_path: &Path) -> Result<()> {
     let target_repo_path = resolve_repo(base_path, repo_name)?;
-    verify_all_chunks(&target_repo_path)
+    verify_all_chunks(&target_repo_path, chunk_store_path)
 }
 
 /// Lets the user choose a Repository from a list

@@ -20,21 +20,30 @@ use crate::{
 pub async fn main_commands(
     base_path: &Path,
     quicklaunch_path: &Path,
+    chunk_store_path: &Path,
     command: Command,
 ) -> Result<()> {
     match command {
         Command::Repo { command } => {
-            repo_commands(base_path, command).await?;
+            repo_commands(base_path, chunk_store_path, command).await?;
             update_quicklaunch(base_path, quicklaunch_path)?;
         }
 
         Command::Build {
             build_manifest_path,
             repo_name,
-        } => build_cmd(base_path, &repo_name, &build_manifest_path).await?,
+        } => {
+            build_cmd(
+                base_path,
+                &repo_name,
+                &build_manifest_path,
+                chunk_store_path,
+            )
+            .await?;
+        }
 
         Command::Install { repo_name, package } => {
-            install_cmd(base_path, repo_name, &package).await?;
+            install_cmd(base_path, repo_name, chunk_store_path, &package).await?;
         }
 
         Command::Remove { repo_name, package } => remove_cmd(base_path, repo_name, &package)?,
@@ -42,16 +51,26 @@ pub async fn main_commands(
         Command::Bundle { command } => bundle_commands(base_path, command)?,
 
         #[cfg(feature = "network")]
-        Command::Update => update_cmd(base_path, quicklaunch_path).await?,
+        Command::Update => update_cmd(base_path, quicklaunch_path, chunk_store_path).await?,
 
         Command::Run {
             repo_name,
             package,
             entrypoint,
             args,
-        } => run_cmd(base_path, repo_name, package, entrypoint, args).await?,
+        } => {
+            run_cmd(
+                base_path,
+                repo_name,
+                chunk_store_path,
+                package,
+                entrypoint,
+                args,
+            )
+            .await?;
+        }
 
-        Command::VerifyChunks { repo_name } => verify_cmd(base_path, &repo_name)?,
+        Command::VerifyChunks { repo_name } => verify_cmd(base_path, &repo_name, chunk_store_path)?,
     }
 
     Ok(())

@@ -78,7 +78,7 @@ pub fn start<S: AsRef<OsStr>>(
 ///
 /// - Filesystem errors (Out of space, Permissions)
 /// - Invalid Repository/Package manifest
-pub async fn install(repo_path: &Path, package_id: &str) -> Result<()> {
+pub async fn install(repo_path: &Path, package_id: &str, chunk_store_path: &Path) -> Result<()> {
     let repo_manifest = read_manifest(repo_path)?;
 
     let package_manifest = repo::get_package(&repo_manifest, package_id)
@@ -89,19 +89,15 @@ pub async fn install(repo_path: &Path, package_id: &str) -> Result<()> {
     #[cfg(feature = "network")]
     install_tree(
         &package_manifest.chunks,
-        &repo_path.join("chunks"),
+        chunk_store_path,
         &repo_manifest.mirrors,
         repo_manifest.hash_kind,
     )
     .await
     .with_context(|| "Failed to install package.")?;
 
-    load_tree(
-        installed_path,
-        &repo_path.join("chunks"),
-        &package_manifest.chunks,
-    )
-    .with_context(|| "Failed to rebuild the tree.")?;
+    load_tree(installed_path, chunk_store_path, &package_manifest.chunks)
+        .with_context(|| "Failed to rebuild the tree.")?;
 
     fs::write(
         installed_path.join("install.meta"),
@@ -123,6 +119,8 @@ mod tests {
     async fn test_install() -> Result<()> {
         let repo_dir = TempDir::new()?;
         let repo_path = repo_dir.path();
+        let chunks_dir = TempDir::new()?;
+        let chunks_path = chunks_dir.path();
 
         create(repo_path, Some(repo_path))?;
 
@@ -156,7 +154,7 @@ mod tests {
         insert_package(&package, repo_path, Some(repo_path))?;
 
         // Now install
-        install(repo_path, "testpkg").await?;
+        install(repo_path, "testpkg", chunks_path).await?;
 
         // Check installed
         let installed_path = repo_path.join("installed/testpkg");

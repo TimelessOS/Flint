@@ -33,7 +33,7 @@ pub struct Chunk {
 ///
 /// - Filesystem errors
 /// - Invalid manifests
-pub fn verify_all_chunks(repo_path: &Path) -> anyhow::Result<()> {
+pub fn verify_all_chunks(repo_path: &Path, chunk_store_path: &Path) -> anyhow::Result<()> {
     let repo_manifest = read_manifest(repo_path)?;
     let mut all_chunks = HashSet::new();
 
@@ -43,7 +43,6 @@ pub fn verify_all_chunks(repo_path: &Path) -> anyhow::Result<()> {
         }
     }
 
-    let chunk_store_path = repo_path.join("chunks");
     let mut verified = 0;
     let mut failed = 0;
 

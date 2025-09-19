@@ -12,13 +12,15 @@ use flintpkg::{
 async fn full_workflow_test() -> Result<()> {
     let repo_dir = TempDir::new()?;
     let repo_path = repo_dir.path();
+    let chunks_dir = TempDir::new()?;
+    let chunks_path = chunks_dir.path();
 
     repo::create(repo_path, None)?;
 
     let build_manifest_path = Path::new("build_manifest.yml");
-    build(build_manifest_path, repo_path, None).await?;
+    build(build_manifest_path, repo_path, None, chunks_path).await?;
 
-    install(repo_path, "example").await?;
+    install(repo_path, "example", chunks_path).await?;
 
     let manifest = get_installed_package(repo_path, "example")?;
 
