@@ -28,7 +28,6 @@ pub async fn repo_commands(
             table.set_header(vec![
                 "Name",
                 "Title",
-                "URL",
                 "Hash Kind",
                 "Homepage",
                 "License",
@@ -47,7 +46,6 @@ pub async fn repo_commands(
                 table.add_row(vec![
                     &repo_name_str,
                     repo.metadata.title.unwrap_or_default().as_str(),
-                    &repo.updates_url.unwrap_or_default(),
                     &repo.hash_kind.to_string(),
                     &repo.metadata.homepage_url.unwrap_or_default(),
                     &repo.metadata.license.unwrap_or_default(),

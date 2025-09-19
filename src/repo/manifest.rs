@@ -6,7 +6,6 @@ use crate::chunks::{Chunk, HashKind};
 pub struct RepoManifest {
     pub metadata: Metadata,
     pub packages: Vec<PackageManifest>,
-    pub updates_url: Option<String>,
     pub public_key: String,
     pub mirrors: Vec<String>,
     pub edition: String,

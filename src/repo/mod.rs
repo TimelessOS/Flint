@@ -36,7 +36,6 @@ pub fn create(repo_path: &Path, config_path: Option<&Path>) -> Result<()> {
             license: None,
         },
         mirrors: Vec::new(),
-        updates_url: None,
         packages: Vec::new(),
         public_key: serialize_verifying_key(get_private_key(config_path)?.verifying_key())?,
     };
