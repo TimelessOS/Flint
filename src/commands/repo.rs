@@ -9,7 +9,7 @@ use crate::{
     utils::resolve_repo,
 };
 
-pub async fn repo_commands(path: &Path, command: RepoCommands) -> Result<()> {
+pub async fn repo_commands(path: &Path, chunks_path: &Path, command: RepoCommands) -> Result<()> {
     match command {
         RepoCommands::Create { repo_name } => repo::create(&path.join(&repo_name), None)?,
 

@@ -17,7 +17,8 @@ use std::{env::var_os, path::PathBuf};
 
 use crate::{commands::main_commands, log::add_to_path_notice};
 use flintpkg::config::{
-    get_system_quicklaunch_dir, get_system_repos_dir, get_user_quicklaunch_dir, get_user_repos_dir,
+    get_system_chunks_dir, get_system_quicklaunch_dir, get_system_repos_dir, get_user_chunks_dir,
+    get_user_quicklaunch_dir, get_user_repos_dir,
 };
 
 /// Simple program to greet a person
@@ -168,7 +169,13 @@ async fn main() -> Result<()> {
         get_system_quicklaunch_dir()?
     };
 
-    main_commands(base_path, quicklaunch_path, args.command).await?;
+    let chunk_store_path = &if scope == Scope::User {
+        get_user_chunks_dir()?
+    } else {
+        get_system_chunks_dir()?
+    };
+
+    main_commands(base_path, quicklaunch_path, chunk_store_path, args.command).await?;
 
     if let Some(path) = var_os("PATH")
         && !path
@@ -182,7 +189,7 @@ async fn main() -> Result<()> {
 }
 
 #[cfg(feature = "network")]
-async fn update_all_repos(base_path: &Path) -> Result<()> {
+async fn update_all_repos(base_path: &Path, chunk_store_path: &Path) -> Result<()> {
     use crate::log::{skipped_update_repo, updated_package, updated_repo};
     use flintpkg::repo::{
         get_all_installed_packages, get_package, network::update_repository, read_manifest,
@@ -210,7 +217,7 @@ async fn update_all_repos(base_path: &Path) -> Result<()> {
             if installed_package != repo_package {
                 updated_package(&repo_package);
 
-                install(&repo_path, &repo_package.id).await?;
+                install(&repo_path, &repo_package.id, chunk_store_path).await?;
             }
         }
     }

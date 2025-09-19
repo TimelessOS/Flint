@@ -53,6 +53,38 @@ pub fn get_system_repos_dir() -> Result<PathBuf> {
     Ok(repos_dir)
 }
 
+/// Gets the user chunks directory
+///
+/// # Errors
+///
+/// - No valid home directory path could be retrieved from the operating system.
+/// - Chunks dir could not be created
+pub fn get_user_chunks_dir() -> Result<PathBuf> {
+    let chunks_dir = get_user_data_dir()?.join("chunks");
+
+    if !chunks_dir.exists() {
+        fs::create_dir_all(&chunks_dir)?;
+    }
+
+    Ok(chunks_dir)
+}
+
+/// Gets the system chunks directory
+///
+/// # Errors
+///
+/// - Chunks dir could not be created
+pub fn get_system_chunks_dir() -> Result<PathBuf> {
+    let chunks_dir = get_system_data_dir().join("chunks");
+
+    if !chunks_dir.exists() {
+        fs::create_dir_all(&chunks_dir)
+            .with_context(|| "Could not create system data dir. Try sudo?")?;
+    }
+
+    Ok(chunks_dir)
+}
+
 /// Gets the system-wide quicklaunch path
 ///
 /// # Errors
