@@ -17,7 +17,7 @@ use std::{env::var_os, path::PathBuf};
 
 use crate::{commands::main_commands, log::add_to_path_notice};
 use flintpkg::config::{
-    get_quicklaunch_dir, get_repos_dir, system_data_dir, system_quicklaunch_dir,
+    get_system_quicklaunch_dir, get_system_repos_dir, get_user_quicklaunch_dir, get_user_repos_dir,
 };
 
 /// Simple program to greet a person
@@ -157,15 +157,15 @@ async fn main() -> Result<()> {
     };
 
     let base_path = &if scope == Scope::User {
-        get_repos_dir()?
+        get_user_repos_dir()?
     } else {
-        system_data_dir()
+        get_system_repos_dir()?
     };
 
     let quicklaunch_path = &if scope == Scope::User {
-        get_quicklaunch_dir()?
+        get_user_quicklaunch_dir()?
     } else {
-        system_quicklaunch_dir()
+        get_system_quicklaunch_dir()?
     };
 
     main_commands(base_path, quicklaunch_path, args.command).await?;

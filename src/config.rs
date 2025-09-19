@@ -21,37 +21,66 @@ pub fn get_config_dir() -> Result<PathBuf> {
     Ok(config_dir)
 }
 
-/// Gets the default/main USER repositorys directory
+/// Gets the user repos directory
 ///
 /// # Errors
 ///
 /// - No valid home directory path could be retrieved from the operating system.
-/// - Reposiorys dir could not be created
-pub fn get_repos_dir() -> Result<PathBuf> {
-    // Locate XDG data directory
-    let base_dirs = BaseDirs::new().context("Could not find user directories")?;
-    let repos_dir: PathBuf = base_dirs.data_dir().join("flint");
+/// - Repositorys dir could not be created
+pub fn get_user_repos_dir() -> Result<PathBuf> {
+    let repos_dir = get_user_data_dir()?.join("repos");
 
-    if !&repos_dir.exists() {
+    if !repos_dir.exists() {
         fs::create_dir_all(&repos_dir)?;
     }
 
     Ok(repos_dir)
 }
 
-/// Gets the main quicklaunch directory
+/// Gets the system repos directory
+///
+/// # Errors
+///
+/// - Repositorys dir could not be created
+pub fn get_system_repos_dir() -> Result<PathBuf> {
+    let repos_dir = get_system_data_dir().join("repos");
+
+    if !repos_dir.exists() {
+        fs::create_dir_all(&repos_dir)
+            .with_context(|| "Could not create system data dir. Try sudo?")?;
+    }
+
+    Ok(repos_dir)
+}
+
+/// Gets the system-wide quicklaunch path
+///
+/// # Errors
+///
+/// - Quicklaunch dir could not be created
+pub fn get_system_quicklaunch_dir() -> Result<PathBuf> {
+    let quicklaunch_dir = get_system_data_dir().join("quicklaunch");
+
+    if !quicklaunch_dir.exists() {
+        fs::create_dir_all(&quicklaunch_dir)
+            .with_context(|| "Could not create quicklaunch dir. Try sudo?")?;
+    }
+
+    Ok(quicklaunch_dir)
+}
+
+/// Gets the users quicklaunch directory
 ///
 /// # Errors
 ///
 /// - No valid home directory path could be retrieved from the operating system.
 /// - Quicklaunch dir could not be created
-pub fn get_quicklaunch_dir() -> Result<PathBuf> {
-    // Locate XDG data directory
-    let base_dirs = BaseDirs::new().context("Could not find user directories")?;
-    let quicklaunch_dir: PathBuf = base_dirs.data_dir().join("flint-quicklaunch");
+pub fn get_user_quicklaunch_dir() -> Result<PathBuf> {
+    let quicklaunch_dir = get_user_data_dir()?.join("quicklaunch");
 
-    if !&quicklaunch_dir.exists() {
-        fs::create_dir_all(&quicklaunch_dir)?;
+    if !quicklaunch_dir.exists() {
+        fs::create_dir_all(&quicklaunch_dir)
+            .with_context(|| "Could not create quicklaunch dir. Try sudo?")?;
     }
 
     Ok(quicklaunch_dir)
@@ -77,7 +106,7 @@ pub fn get_build_cache_dir() -> Result<PathBuf> {
 
 #[must_use]
 /// Gets the SYSTEM-WIDE Repositorys path
-pub fn system_data_dir() -> PathBuf {
+fn get_system_data_dir() -> PathBuf {
     #[cfg(target_os = "linux")]
     {
         PathBuf::from("/var/lib/flint")
@@ -94,21 +123,19 @@ pub fn system_data_dir() -> PathBuf {
     }
 }
 
-#[must_use]
-/// Gets the SYSTEM-WIDE quicklaunch path
-pub fn system_quicklaunch_dir() -> PathBuf {
-    #[cfg(target_os = "linux")]
-    {
-        PathBuf::from("/var/lib/flint-quicklaunch")
+/// Gets the user data directory
+///
+/// # Errors
+///
+/// - No valid home directory path could be retrieved from the operating system.
+fn get_user_data_dir() -> Result<PathBuf> {
+    // Locate XDG data directory
+    let base_dirs = BaseDirs::new().context("Could not find user directories")?;
+    let data_dir: PathBuf = base_dirs.data_dir().join("flint");
+
+    if !&data_dir.exists() {
+        fs::create_dir_all(&data_dir)?;
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        PathBuf::from("/Library/Application Support/flint-quicklaunch")
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        PathBuf::from(r"C:\ProgramData\Flint-quicklaunch")
-    }
+    Ok(data_dir)
 }
