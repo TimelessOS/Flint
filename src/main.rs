@@ -33,6 +33,10 @@ struct Args {
     #[arg(long, conflicts_with = "system")]
     user: bool,
 
+    /// Override the flint root
+    #[arg(long)]
+    root: Option<PathBuf>,
+
     #[command(subcommand)]
     command: Command,
 }
@@ -159,7 +163,9 @@ async fn main() -> Result<()> {
         Scope::User
     };
 
-    let base_path = &if scope == Scope::User {
+    let base_path = &if let Some(sysroot) = args.root {
+        sysroot
+    } else if scope == Scope::User {
         get_user_repos_dir()?
     } else {
         get_system_repos_dir()?
