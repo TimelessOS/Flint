@@ -45,7 +45,7 @@ console = { version = "0.16.1", default-features = false, features = [
 ] }
 futures-util = "0.3.31"
 filetime = "0.2.26"
-liblzma = { version = "0.4.4", features = ["static"] }
+liblzma = { version = "0.4.5", features = ["static"] }
 bzip2 = { version = "0.6.0", features = ["static"] }
 
 [dev-dependencies]
