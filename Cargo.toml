@@ -29,7 +29,7 @@ reqwest = { version = "0.12.23", optional = true, default-features = false, feat
     "brotli",
     "system-proxy",
 ] }
-serde = { version = "1.0.223", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_yaml = "0.9.34"
 tar = "0.4.44"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
