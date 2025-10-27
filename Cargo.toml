@@ -12,7 +12,7 @@ default-run = "flint"
 [dependencies]
 anyhow = "1.0.99"
 blake3 = { version = "1.8.2", features = ["digest"] }
-clap = { version = "4.5.47", features = ["derive"] }
+clap = { version = "4.5.50", features = ["derive"] }
 comfy-table = "7.2.1"
 directories = "6.0.0"
 ed25519-dalek = { version = "=3.0.0-pre.1", features = [
