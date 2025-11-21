@@ -1,10 +1,10 @@
-mod manifest;
-mod manifest_io;
+mod io;
 #[cfg(feature = "network")]
 pub mod network;
+mod types;
 pub mod versions;
-pub use manifest::*;
-pub use manifest_io::{read_manifest, update_manifest};
+pub use io::{read_manifest, update_manifest};
+pub use types::*;
 
 use anyhow::{Result, bail};
 use std::fs::create_dir_all;

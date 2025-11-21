@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::{
     crypto::{key::deserialize_verifying_key, signing::verify_signature},
-    repo::{RepoManifest, manifest_io::atomic_replace, read_manifest, update_manifest},
+    repo::{RepoManifest, io::atomic_replace, read_manifest, update_manifest},
 };
 
 /// Updates the Repository and returns a list of packages that have changed
