@@ -5,7 +5,7 @@ use temp_dir::TempDir;
 use flintpkg::{
     build::build,
     repo::{self, get_installed_package},
-    run::{install, start},
+    run::{install_package, start},
 };
 
 #[tokio::test]
@@ -20,7 +20,7 @@ async fn full_workflow_test() -> Result<()> {
     let build_manifest_path = Path::new("build_manifest.yml");
     build(build_manifest_path, repo_path, None, chunks_path).await?;
 
-    install(repo_path, "example", chunks_path).await?;
+    install_package(repo_path, "example", chunks_path).await?;
 
     let manifest = get_installed_package(repo_path, "example")?;
 

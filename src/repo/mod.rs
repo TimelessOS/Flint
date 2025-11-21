@@ -2,6 +2,7 @@ mod manifest;
 mod manifest_io;
 #[cfg(feature = "network")]
 pub mod network;
+pub mod versions;
 pub use manifest::*;
 pub use manifest_io::{read_manifest, update_manifest};
 

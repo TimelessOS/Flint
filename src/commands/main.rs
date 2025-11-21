@@ -9,7 +9,7 @@ use flintpkg::{
     build::build,
     chunks::{utils::clean_unused, verify_all_chunks},
     repo::{PackageManifest, get_package, read_manifest},
-    run::{install, start},
+    run::{install_package, start},
     utils::{resolve_package, resolve_repo},
 };
 
@@ -48,7 +48,7 @@ pub async fn install_cmd(
         }
     };
 
-    install(&target_repo_path, package_id, chunk_store_path).await?;
+    install_package(&target_repo_path, package_id, chunk_store_path).await?;
 
     Ok(())
 }
@@ -139,7 +139,7 @@ pub async fn run_cmd(
         .join("install.meta")
         .exists()
     {
-        install(&target_repo_path, &package, chunk_store_path)
+        install_package(&target_repo_path, &package, chunk_store_path)
             .await
             .with_context(|| "Failed to install package.")?;
     }

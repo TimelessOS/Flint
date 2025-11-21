@@ -4,17 +4,13 @@ use anyhow::{Context, Result, bail};
 use std::{
     collections::HashMap,
     ffi::OsStr,
-    fs,
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
 };
 
 #[cfg(feature = "network")]
 use crate::chunks::install_tree;
-use crate::{
-    chunks::load_tree,
-    repo::{self, PackageManifest, read_manifest},
-};
+use crate::repo::{PackageManifest, get_package, read_manifest, versions::install_version};
 
 /// Starts a package from an entrypoint
 ///
@@ -72,18 +68,23 @@ pub fn start<S: AsRef<OsStr>>(
     }
 }
 
-/// Installs or Updates a Package.
+/// Installs the latest version of a package, assumes all chunks are available.
+/// Will automatically autoclean.
 ///
 /// # Errors
 ///
 /// - Filesystem errors (Out of space, Permissions)
 /// - Invalid Repository/Package manifest
-pub async fn install(repo_path: &Path, package_id: &str, chunk_store_path: &Path) -> Result<()> {
+/// - Network Errors (If network is enabled)
+pub async fn install_package(
+    repo_path: &Path,
+    package_id: &str,
+    chunk_store_path: &Path,
+) -> Result<()> {
     let repo_manifest = read_manifest(repo_path)?;
 
-    let package_manifest = repo::get_package(&repo_manifest, package_id)
+    let package_manifest = get_package(&repo_manifest, package_id)
         .with_context(|| "Failed to get package from Repository.")?;
-    let installed_path = &repo_path.join("installed").join(&package_manifest.id);
 
     // Get any chunks that are not installed
     #[cfg(feature = "network")]
@@ -96,15 +97,7 @@ pub async fn install(repo_path: &Path, package_id: &str, chunk_store_path: &Path
     .await
     .with_context(|| "Failed to install package.")?;
 
-    load_tree(installed_path, chunk_store_path, &package_manifest.chunks)
-        .with_context(|| "Failed to rebuild the tree.")?;
-
-    fs::write(
-        installed_path.join("install.meta"),
-        serde_yaml::to_string(&package_manifest)?,
-    )?;
-
-    Ok(())
+    install_version(repo_path, package_id, chunk_store_path)
 }
 
 #[cfg(test)]
@@ -154,7 +147,7 @@ mod tests {
         insert_package(&package, repo_path, Some(repo_path))?;
 
         // Now install
-        install(repo_path, "testpkg", chunks_path).await?;
+        install_package(repo_path, "testpkg", chunks_path).await?;
 
         // Check installed
         let installed_path = repo_path.join("installed/testpkg");

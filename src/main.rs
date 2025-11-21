@@ -203,7 +203,7 @@ async fn update_all_repos(base_path: &Path, chunk_store_path: &Path) -> Result<(
         get_all_installed_packages, get_package, network::update_repository, read_manifest,
         remove_package,
     };
-    use flintpkg::run::install;
+    use flintpkg::run::install_package;
 
     for entry in base_path.read_dir()? {
         let repo = entry?;
@@ -225,7 +225,7 @@ async fn update_all_repos(base_path: &Path, chunk_store_path: &Path) -> Result<(
                 if installed_package != repo_package {
                     updated_package(&repo_package);
 
-                    install(&repo_path, &repo_package.id, chunk_store_path).await?;
+                    install_package(&repo_path, &repo_package.id, chunk_store_path).await?;
                 }
             } else {
                 remove_package(&installed_package.id, &repo_path, None)?;
