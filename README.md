@@ -8,7 +8,14 @@ Flint is the universal package manager.
 
 ### Via flint
 
-This is currently not supported yet.
+Replace `REPO_NAME` and `REPO_URL` with your desired initial repository.
+The initial repository MUST contain flint.
+```bash
+curl https://raw.githubusercontent.com/TimelessOS/Flint/refs/heads/main/install_standalone.sh -o /tmp/flint_script.sh
+chmod 700 /tmp/flint_script.sh
+/tmp/flint_script.sh REPO_NAME REPO_URL
+rm /tmp/flint_script.sh
+```
 
 ### Cargo
 
