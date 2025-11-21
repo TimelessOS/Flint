@@ -10,7 +10,7 @@ edition = "2024"
 default-run = "flint"
 
 [dependencies]
-anyhow = "1.0.99"
+anyhow = "1.0.100"
 blake3 = { version = "1.8.2", features = ["digest"] }
 clap = { version = "4.5.50", features = ["derive"] }
 comfy-table = "7.2.1"
@@ -29,7 +29,7 @@ reqwest = { version = "0.12.23", optional = true, default-features = false, feat
     "brotli",
     "system-proxy",
 ] }
-serde = { version = "1.0.223", features = ["derive"] }
+serde = { version = "1.0.228", features = ["derive"] }
 serde_yaml = "0.9.34"
 tar = "0.4.44"
 tokio = { version = "1.47.1", features = ["macros", "rt-multi-thread"] }
@@ -45,11 +45,11 @@ console = { version = "0.16.1", default-features = false, features = [
 ] }
 futures-util = "0.3.31"
 filetime = "0.2.26"
-liblzma = { version = "0.4.4", features = ["static"] }
+liblzma = { version = "0.4.5", features = ["static"] }
 bzip2 = { version = "0.6.0", features = ["static"] }
 
 [dev-dependencies]
-httpmock = "0.7.0"
+httpmock = "0.8.2"
 
 [features]
 network = ["dep:reqwest", "dep:flate2"]
