@@ -10,7 +10,10 @@ use std::{
 
 #[cfg(feature = "network")]
 use crate::chunks::install_tree;
-use crate::repo::{PackageManifest, get_package, read_manifest, versions::install_version};
+use crate::repo::{
+    PackageManifest, get_package, read_manifest,
+    versions::{install_version, switch_version},
+};
 
 /// Starts a package from an entrypoint
 ///
@@ -85,6 +88,8 @@ pub async fn install_package(
 
     let package_manifest = get_package(&repo_manifest, package_id)
         .with_context(|| "Failed to get package from Repository.")?;
+    // Don't just use an alias but actually resolve into a correct package id
+    let package_id = &package_manifest.id;
 
     // Get any chunks that are not installed
     #[cfg(feature = "network")]
@@ -97,7 +102,11 @@ pub async fn install_package(
     .await
     .with_context(|| "Failed to install package.")?;
 
-    install_version(repo_path, package_id, chunk_store_path)
+    let hash = install_version(repo_path, package_id, chunk_store_path)?;
+
+    switch_version(repo_path, &hash, package_id)?;
+
+    Ok(())
 }
 
 #[cfg(test)]

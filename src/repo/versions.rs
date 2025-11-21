@@ -19,7 +19,15 @@ fn hash_package(package_manifest: &PackageManifest, hash_kind: HashKind) -> Resu
 ///
 /// - Filesystem errors (Out of space, Permissions)
 /// - Invalid Repository/Package manifest
-pub fn install_version(repo_path: &Path, package_id: &str, chunk_store_path: &Path) -> Result<()> {
+///
+/// # Returns
+///
+/// Returns the hash of the installed package
+pub fn install_version(
+    repo_path: &Path,
+    package_id: &str,
+    chunk_store_path: &Path,
+) -> Result<String> {
     let repo_manifest = read_manifest(repo_path)?;
 
     let package_manifest = get_package(&repo_manifest, package_id)
@@ -37,13 +45,21 @@ pub fn install_version(repo_path: &Path, package_id: &str, chunk_store_path: &Pa
         serde_yaml::to_string(&package_manifest)?,
     )?;
 
-    Ok(())
+    Ok(package_hash)
 }
 
-pub fn switch_version(repo_path: &Path, hash: String, package_id: &str) -> Result<()> {
+/// Switch to an older version/package hash.
+///
+/// # Errors
+///
+/// - Filesystem error during symlink (Within repo directory)
+pub fn switch_version(repo_path: &Path, hash: &str, package_id: &str) -> Result<()> {
     let target_parent_path = repo_path.join("installed");
     let target_path = target_parent_path.join(package_id);
+    fs::create_dir(target_parent_path)?;
     symlink(format!("../versions/{package_id}-{hash}"), target_path)?;
+
+    println!("{}", repo_path.display());
 
     Ok(())
 }
