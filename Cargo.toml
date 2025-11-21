@@ -1,6 +1,6 @@
 [package]
 name = "flintpkg"
-version = "0.1.1"
+version = "0.2.0"
 description = "The universal package manager"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/TimelessOS/Flint"
