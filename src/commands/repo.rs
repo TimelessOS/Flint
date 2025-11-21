@@ -14,6 +14,7 @@ pub async fn repo_commands(
     base_path: &Path,
     chunk_store_path: &Path,
     command: RepoCommands,
+    quicklaunch_path: &Path,
 ) -> Result<()> {
     match command {
         RepoCommands::Create { repo_name } => {
@@ -64,12 +65,15 @@ pub async fn repo_commands(
         } => {
             use crate::log::{added_repo, cannot_update_repo, update_redirect};
             use flintpkg::repo::network::add_repository;
+            use flintpkg::run::quicklaunch::update_quicklaunch;
 
             let repo_path = &base_path.join(&repo_name);
             fs::create_dir_all(repo_path)?;
 
             let manifest = add_repository(repo_path, &remote_url, None).await?;
             added_repo(&repo_name, &manifest.public_key);
+
+            update_quicklaunch(base_path, quicklaunch_path)?;
 
             if let Some(first_mirror) = manifest.mirrors.first() {
                 if remote_url != *first_mirror {

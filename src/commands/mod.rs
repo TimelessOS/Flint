@@ -25,7 +25,7 @@ pub async fn main_commands(
 ) -> Result<()> {
     match command {
         Command::Repo { command } => {
-            repo_commands(base_path, chunk_store_path, command).await?;
+            repo_commands(base_path, chunk_store_path, command, quicklaunch_path).await?;
             update_quicklaunch(base_path, quicklaunch_path)?;
         }
 
