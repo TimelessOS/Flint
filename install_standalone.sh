@@ -11,8 +11,7 @@ INITIAL_REPOSITORY_URL="$2"
 echo "[INFO] Using inital repository: '$INITIAL_REPOSITORY_NAME' with URL: '$INITIAL_REPOSITORY_URL'"
 echo "[INFO] Downloading latest flintpkg from github releases..."
 
-# TODO: Rename to flint.x86_64 on next release
-curl --follow https://github.com/TimelessOS/Flint/releases/latest/download/flint -o $TMP_LOCATION
+curl --follow https://github.com/TimelessOS/Flint/releases/latest/download/flint.x86_64 -o $TMP_LOCATION
 
 chmod 700 $TMP_LOCATION
 
