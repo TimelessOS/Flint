@@ -1,5 +1,11 @@
 use anyhow::{Context, Result, anyhow};
-use std::{env::current_exe, fs, os::unix::fs::PermissionsExt, path::Path};
+use std::{
+    collections::HashSet,
+    env::current_exe,
+    fs,
+    os::unix::fs::PermissionsExt,
+    path::{Path, PathBuf},
+};
 
 use crate::repo::read_manifest;
 
@@ -10,22 +16,26 @@ use crate::repo::read_manifest;
 /// - Filesystem
 /// - Bad Repositories
 pub fn update_quicklaunch(repos_path: &Path, quicklaunch_path: &Path) -> Result<()> {
-    let mut allowed = Vec::new();
+    let mut allowed = HashSet::new();
 
     for entry in repos_path.read_dir()? {
         let repo_path = entry?.path();
 
         let manifest = read_manifest(&repo_path)?;
 
+        // Write all quicklaunch scripts. This has the unintended sideffect of rewriting existing
+        // quicklaunch scripts.
         for package in manifest.packages {
             for entrypoint in package.commands {
                 let command = entrypoint
                     .file_name()
                     .ok_or_else(|| anyhow!("Could not get entrypoint name"))?;
 
-                allowed.push(command.to_owned());
+                allowed.insert(command.to_owned());
 
-                let tmp_path = &quicklaunch_path.join(format!("{}.new", command.display()));
+                let mut tmp_filename = PathBuf::from(command);
+                tmp_filename.set_extension("new");
+                let tmp_path = &quicklaunch_path.join(tmp_filename);
                 let path = quicklaunch_path.join(command);
 
                 // generate quicklaunch script
@@ -50,7 +60,7 @@ pub fn update_quicklaunch(repos_path: &Path, quicklaunch_path: &Path) -> Result<
         }
     }
 
-    // delete quicklaunch scripts for removed things
+    // delete quicklaunch scripts for removed packages
     for entry in quicklaunch_path.read_dir()? {
         let file = entry?;
 
