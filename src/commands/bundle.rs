@@ -1,7 +1,8 @@
 use anyhow::Result;
 use std::{fs, path::Path};
 
-use crate::{BundleCommands, build::bundle::build_bundle, utils::resolve_repo};
+use crate::BundleCommands;
+use flintpkg::{build::bundle::build_bundle, utils::resolve_repo};
 
 pub fn bundle_commands(base_path: &Path, command: BundleCommands) -> Result<()> {
     match command {

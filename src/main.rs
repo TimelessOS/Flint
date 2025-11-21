@@ -1,13 +1,5 @@
-mod build;
-mod bundle;
-mod chunks;
 mod commands;
-mod config;
-mod crypto;
 mod log;
-mod repo;
-mod run;
-mod utils;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};

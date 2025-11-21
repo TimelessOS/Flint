@@ -3,8 +3,8 @@ use comfy_table::Table;
 use flintpkg::chunks::utils::clean_unused;
 use std::{fs, os::unix::fs::symlink, path::Path};
 
-use crate::{
-    RepoCommands,
+use crate::RepoCommands;
+use flintpkg::{
     crypto::signing::sign,
     repo::{self, read_manifest, remove_package, update_manifest},
     utils::resolve_repo,
@@ -63,7 +63,7 @@ pub async fn repo_commands(
             remote_url,
         } => {
             use crate::log::{added_repo, cannot_update_repo, update_redirect};
-            use crate::repo::network::add_repository;
+            use flintpkg::repo::network::add_repository;
 
             let repo_path = &base_path.join(&repo_name);
             fs::create_dir_all(repo_path)?;
