@@ -9,6 +9,7 @@ use flintpkg::{
 };
 
 #[tokio::test]
+#[ignore = "Really expensive, requires cloning from github and rebuilding flint."]
 async fn full_workflow_test() -> Result<()> {
     let repo_dir = TempDir::new()?;
     let repo_path = repo_dir.path();
