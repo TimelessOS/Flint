@@ -20,7 +20,7 @@ use crate::crypto::signing::sign;
 ///
 /// - File permission errors at `repo_path`
 /// - Key generation errors (If you do not already have a key)
-pub fn create(repo_path: &Path, config_path: Option<&Path>) -> Result<()> {
+pub fn create_repo(repo_path: &Path, config_path: Option<&Path>) -> Result<()> {
     if repo_path.join("manifest.yml").exists() {
         bail!("Repository Already exists")
     }
@@ -131,10 +131,7 @@ pub fn get_package(repo_manifest: &RepoManifest, package_id: &str) -> Result<Pac
         }
     }
 
-    bail!(
-        "Could not find package '{}' found in Repository.",
-        package_id
-    );
+    bail!("Could not find package '{package_id}' found in Repository.",);
 }
 
 /// Gets an installed package manifest from a repository.
@@ -224,7 +221,7 @@ mod tests {
         // Create repo
         let repo = TempDir::new()?;
         let repo_path = repo.path();
-        create(repo_path, Some(repo_path))?;
+        create_repo(repo_path, Some(repo_path))?;
 
         // Make sure errors on no package
         assert!(get_package(&read_manifest(repo_path)?, "test").is_err());
@@ -260,7 +257,7 @@ mod tests {
         let repo_path = tmp.path();
 
         // Create repo
-        create(repo_path, Some(repo_path)).unwrap();
+        create_repo(repo_path, Some(repo_path)).unwrap();
 
         // Read unsigned manifest
         let manifest = read_manifest(repo_path).unwrap();
@@ -277,7 +274,7 @@ mod tests {
     fn test_tampered_manifest_fails() -> Result<()> {
         let tmp = TempDir::new()?;
         let repo_path = tmp.path();
-        create(repo_path, Some(repo_path))?;
+        create_repo(repo_path, Some(repo_path))?;
 
         // Tamper with manifest.yml
         let mut contents = fs::read_to_string(repo_path.join("manifest.yml"))?;

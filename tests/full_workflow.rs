@@ -4,7 +4,7 @@ use temp_dir::TempDir;
 
 use flintpkg::{
     build::build,
-    repo::{self, get_installed_package},
+    repo::{create_repo, get_installed_package},
     run::{install_package, start},
 };
 
@@ -16,7 +16,7 @@ async fn full_workflow_test() -> Result<()> {
     let chunks_dir = TempDir::new()?;
     let chunks_path = chunks_dir.path();
 
-    repo::create(repo_path, None)?;
+    create_repo(repo_path, None)?;
 
     let build_manifest_path = Path::new("build_manifest.yml");
     build(build_manifest_path, repo_path, None, chunks_path).await?;

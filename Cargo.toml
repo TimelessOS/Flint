@@ -75,3 +75,4 @@ nursery = "warn"
 
 [profile.release]
 lto = true
+debug = "line-tables-only"

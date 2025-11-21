@@ -8,9 +8,6 @@ use crate::{
 
 /// Reads a manifest and verifys it from the EXISTING key. This is best for GENERAL reading.
 ///
-/// # Warning
-/// Do NOT run on downloaded manifests before `read_manifest_signed`, or else potentially malicious inputs will be parsed.
-///
 /// # Errors
 ///
 /// - Filesystem errors (Permissions or doesn't exist)
@@ -34,26 +31,6 @@ fn read_manifest_unsigned(repo_path: &Path) -> Result<RepoManifest> {
 
     let manifest: RepoManifest = serde_yaml::from_str(&manifest_serialized)?;
 
-    Ok(manifest)
-}
-
-/// Reads a manifest and verifys it. This is best for WHEN it has been downloaded.
-///
-/// # Errors
-///
-/// - Filesystem errors (Permissions or doesn't exist)
-/// - Invalid signature
-pub fn read_manifest_signed(repo_path: &Path, public_key_serialized: &str) -> Result<RepoManifest> {
-    let manifest_serialized = fs::read_to_string(repo_path.join("manifest.yml"))?;
-    let manifest_signature_serialized = fs::read(repo_path.join("manifest.yml.sig"))?;
-
-    verify_signature(
-        &manifest_serialized,
-        &manifest_signature_serialized,
-        deserialize_verifying_key(public_key_serialized)?,
-    )?;
-
-    let manifest = serde_yaml::from_str(&manifest_serialized)?;
     Ok(manifest)
 }
 
@@ -104,7 +81,8 @@ pub fn atomic_replace(base_path: &Path, filename: &str, contents: &[u8]) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{crypto::signing::sign, repo::create};
+    use crate::crypto::signing::sign;
+    use crate::repo::create_repo;
     use temp_dir::TempDir;
 
     #[test]
@@ -126,7 +104,7 @@ mod tests {
     fn test_update_manifest_valid_and_invalid() -> Result<()> {
         let repo = TempDir::new()?;
         let repo_path = repo.path();
-        create(repo_path, Some(repo_path))?;
+        create_repo(repo_path, Some(repo_path))?;
 
         let old_manifest = read_manifest(repo_path)?;
 
@@ -156,10 +134,10 @@ mod tests {
     fn test_read_signed_manifest() -> Result<()> {
         let repo = TempDir::new()?;
         let repo_path = repo.path();
-        create(repo_path, Some(repo_path))?;
+        create_repo(repo_path, Some(repo_path))?;
 
         let manifest = read_manifest(repo_path)?;
-        let manifest_signed = read_manifest_signed(repo_path, &manifest.public_key)?;
+        let manifest_signed = read_manifest(repo_path)?;
 
         assert_eq!(manifest.edition, manifest_signed.edition);
 

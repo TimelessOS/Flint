@@ -6,7 +6,7 @@ use std::{fs, os::unix::fs::symlink, path::Path};
 use crate::RepoCommands;
 use flintpkg::{
     crypto::signing::sign,
-    repo::{self, read_manifest, remove_package, update_manifest},
+    repo::{create_repo, read_manifest, remove_package, update_manifest},
     utils::resolve_repo,
 };
 
@@ -19,7 +19,7 @@ pub async fn repo_commands(
         RepoCommands::Create { repo_name } => {
             let repo_path = &base_path.join(&repo_name);
 
-            repo::create(repo_path, None)?;
+            create_repo(repo_path, None)?;
             symlink(Path::new("../../chunks"), repo_path.join("chunks"))?;
         }
 

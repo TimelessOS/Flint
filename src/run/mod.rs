@@ -113,7 +113,7 @@ pub async fn install_package(
 mod tests {
     use super::*;
     use crate::chunks::save_tree;
-    use crate::repo::{Metadata, PackageManifest, create, insert_package};
+    use crate::repo::{Metadata, PackageManifest, create_repo, insert_package};
     use std::fs;
     use temp_dir::TempDir;
 
@@ -124,7 +124,7 @@ mod tests {
         let chunks_dir = TempDir::new()?;
         let chunks_path = chunks_dir.path();
 
-        create(repo_path, Some(repo_path))?;
+        create_repo(repo_path, Some(repo_path))?;
 
         // Create a temp tree
         let temp_tree = TempDir::new()?;

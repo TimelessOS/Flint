@@ -18,6 +18,7 @@ pub async fn install_chunk(
 ) -> Result<()> {
     let chunk_name = get_chunk_filename(&chunk.hash, chunk.permissions);
     let chunk_path = chunk_store_path.join(&chunk_name);
+    let tmp_chunk_path = chunk_store_path.join(format!("{}.tmp", &chunk_name));
 
     if chunk_path.exists() {
         return Ok(());
@@ -30,7 +31,8 @@ pub async fn install_chunk(
     let hash = hash(hash_kind, &body);
 
     if hash == chunk.hash {
-        fs::write(&chunk_path, body)?;
+        fs::write(&tmp_chunk_path, body)?;
+        fs::rename(&tmp_chunk_path, &chunk_path)?;
 
         Ok(())
     } else {
