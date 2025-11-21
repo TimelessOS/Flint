@@ -40,7 +40,7 @@ pub async fn install_cmd(
         let possible_repos = resolve_package(base_path, package_id, |_| true)?;
 
         if possible_repos.len() > 1 {
-            choose_repo(possible_repos)?
+            choose_repo(possible_repos)?.0
         } else if let Some(possible_repo) = possible_repos.first() {
             possible_repo.0.clone()
         } else {
@@ -62,7 +62,7 @@ pub fn remove_cmd(base_path: &Path, repo_name: Option<String>, package_id: &str)
         })?;
 
         if possible_repos.len() > 1 {
-            choose_repo(possible_repos)?
+            choose_repo(possible_repos)?.0
         } else if let Some(possible_repo) = possible_repos.first() {
             possible_repo.0.clone()
         } else {
@@ -99,23 +99,24 @@ pub async fn run_cmd(
     entrypoint: Option<String>,
     args: Option<Vec<String>>,
 ) -> Result<()> {
-    let target_repo_path: PathBuf = if let Some(repo_name) = repo_name {
-        resolve_repo(path, &repo_name)?
+    let (target_repo_path, package_manifest) = if let Some(repo_name) = repo_name {
+        // Resolve the path, and then read the package manifest
+        let repo_path = resolve_repo(path, &repo_name)?;
+        let repo_manifest = read_manifest(&repo_path)?;
+        let package_manifest = get_package(&repo_manifest, &package)?;
+
+        (repo_path, package_manifest)
     } else {
         let possible_repos = resolve_package(path, &package, |_| true)?;
 
         if possible_repos.len() > 1 {
             choose_repo(possible_repos)?
         } else if let Some(possible_repo) = possible_repos.first() {
-            possible_repo.0.clone()
+            possible_repo.clone()
         } else {
             bail!("No Repositories contain that package.")
         }
     };
-
-    let repo_manifest = read_manifest(&target_repo_path)?;
-    let package_manifest =
-        get_package(&repo_manifest, &package).context("Failed to read package manifest")?;
 
     let entrypoint = if let Some(e) = entrypoint {
         e
@@ -161,7 +162,9 @@ pub fn verify_cmd(base_path: &Path, repo_name: &str, chunk_store_path: &Path) ->
 }
 
 /// Lets the user choose a Repository from a list
-fn choose_repo(possible_repos: Vec<(PathBuf, PackageManifest)>) -> Result<PathBuf> {
+fn choose_repo(
+    possible_repos: Vec<(PathBuf, PackageManifest)>,
+) -> Result<(PathBuf, PackageManifest)> {
     let items: Vec<String> = possible_repos
         .iter()
         .map(|(path, manifest)| {
@@ -180,5 +183,5 @@ fn choose_repo(possible_repos: Vec<(PathBuf, PackageManifest)>) -> Result<PathBu
         .default(0)
         .interact()?;
 
-    Ok(possible_repos.into_iter().nth(selection).unwrap().0)
+    Ok(possible_repos.into_iter().nth(selection).unwrap())
 }

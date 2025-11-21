@@ -56,10 +56,13 @@ pub fn install_version(
 pub fn switch_version(repo_path: &Path, hash: &str, package_id: &str) -> Result<()> {
     let target_parent_path = repo_path.join("installed");
     let target_path = target_parent_path.join(package_id);
-    fs::create_dir(target_parent_path)?;
-    symlink(format!("../versions/{package_id}-{hash}"), target_path)?;
+    let target_tmp_path = target_parent_path.join(format!("{package_id}.tmp"));
+    fs::create_dir_all(target_parent_path)?;
 
-    println!("{}", repo_path.display());
+    let versions_path = format!("../versions/{package_id}-{hash}");
+
+    symlink(&versions_path, &target_tmp_path)?;
+    fs::rename(&target_tmp_path, &target_path)?;
 
     Ok(())
 }
