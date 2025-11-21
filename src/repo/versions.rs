@@ -65,6 +65,14 @@ pub fn switch_version(repo_path: &Path, hash: &str, package_id: &str) -> Result<
 }
 
 /// Gets all versions for the `package_id`
+///
+/// # Errors
+///
+/// - Filesystem Read Errors (Permissions, etc)
+///
+/// # Returns
+///
+/// A `vec` containing `String`s of all version hashes
 pub fn get_versions(repo_path: &Path, package_id: &str) -> Result<Vec<String>> {
     let mut versions = Vec::new();
 
@@ -86,9 +94,18 @@ pub fn get_versions(repo_path: &Path, package_id: &str) -> Result<Vec<String>> {
 }
 
 /// Removes a version of a package.
-pub fn remove_version(repo_path: &Path, hash: String, package_id: &str) -> Result<()> {
-    let path = repo_path.join(format!("versions/{}-{}", package_id, hash));
-    fs::remove_dir_all(path)?;
+///
+/// # Errors
+///
+/// - Version is not installed for the package
+/// - Filesystem Write Errors (Permissions, etc)
+pub fn remove_version(repo_path: &Path, hash: &str, package_id: &str) -> Result<()> {
+    let path = repo_path.join(format!("versions/{package_id}-{hash}"));
 
-    Ok(())
+    if path.exists() {
+        fs::remove_dir_all(path)?;
+        Ok(())
+    } else {
+        anyhow::bail!("The version {hash} is not installed for package {package_id}")
+    }
 }
