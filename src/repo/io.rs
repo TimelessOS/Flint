@@ -131,15 +131,15 @@ mod tests {
     }
 
     #[test]
-    fn test_read_signed_manifest() -> Result<()> {
+    fn test_read_unsigned_manifest() -> Result<()> {
         let repo = TempDir::new()?;
         let repo_path = repo.path();
         create_repo(repo_path, Some(repo_path))?;
 
         let manifest = read_manifest(repo_path)?;
-        let manifest_signed = read_manifest(repo_path)?;
+        let manifest_unsigned = read_manifest_unsigned(repo_path)?;
 
-        assert_eq!(manifest.edition, manifest_signed.edition);
+        assert_eq!(manifest.edition, manifest_unsigned.edition);
 
         Ok(())
     }
