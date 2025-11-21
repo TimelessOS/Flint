@@ -8,7 +8,10 @@ use std::{
 use flintpkg::{
     build::build,
     chunks::{utils::clean_unused, verify_all_chunks},
-    repo::{PackageManifest, get_package, read_manifest},
+    repo::{
+        PackageManifest, get_package, read_manifest,
+        versions::{get_versions, remove_version},
+    },
     run::{install_package, start},
     utils::{resolve_package, resolve_repo},
 };
@@ -71,6 +74,10 @@ pub fn remove_cmd(base_path: &Path, repo_name: Option<String>, package_id: &str)
     };
 
     fs::remove_dir_all(target_repo_path.join("installed").join(package_id))?;
+
+    for version in get_versions(&target_repo_path, package_id)? {
+        remove_version(&target_repo_path, &version, package_id)?;
+    }
 
     Ok(())
 }
