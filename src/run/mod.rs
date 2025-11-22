@@ -2,7 +2,7 @@ pub mod quicklaunch;
 
 use anyhow::{Context, Result, bail};
 use std::{
-    collections::HashMap,
+    collections::BTreeMap,
     ffi::OsStr,
     path::{Path, PathBuf},
     process::{Command, ExitStatus},
@@ -44,7 +44,7 @@ pub fn start<S: AsRef<OsStr>>(
         let entrypoint = entrypoint.to_string_lossy();
         let entrypoint: &str = entrypoint.trim_start_matches('/');
 
-        let mut envs: HashMap<String, String> = package_manifest.env.unwrap_or_default();
+        let mut envs: BTreeMap<String, String> = package_manifest.env.unwrap_or_default();
 
         // I hate I have to do this.
         let keys_to_update: Vec<String> = envs
