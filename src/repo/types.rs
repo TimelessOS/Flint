@@ -21,6 +21,8 @@ pub struct PackageManifest {
     pub commands: Vec<PathBuf>,
     /// Runtime environment variables
     pub env: Option<BTreeMap<String, String>>,
+    #[serde(default = "build_hash_default")]
+    pub build_hash: String,
 }
 
 /// All of these are user visible, and should carry no actual weight.
@@ -33,4 +35,8 @@ pub struct Metadata {
     pub version: Option<String>,
     /// SPDX Identifier
     pub license: Option<String>,
+}
+
+fn build_hash_default() -> String {
+    "uninitialized".to_string()
 }

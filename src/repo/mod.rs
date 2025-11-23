@@ -239,6 +239,7 @@ mod tests {
                 license: None,
             },
             env: None,
+            build_hash: "Example Build Hash".to_string(),
         };
 
         insert_package(&package_manifest, repo_path, Some(repo_path))?;
