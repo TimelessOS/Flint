@@ -113,7 +113,7 @@ pub async fn install_package(
 mod tests {
     use super::*;
     use crate::chunks::save_tree;
-    use crate::repo::{Metadata, PackageManifest, create_repo, insert_package};
+    use crate::repo::{Metadata, create_repo, insert_package};
     use std::fs;
     use temp_dir::TempDir;
 
@@ -150,6 +150,8 @@ mod tests {
             chunks,
             commands: Vec::new(),
             env: None,
+            // TODO!
+            build_hash: "TODO".to_string(),
         };
 
         // Insert package

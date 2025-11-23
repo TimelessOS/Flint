@@ -173,6 +173,8 @@ pub async fn build(
         metadata: build_manifest.metadata,
         chunks: included_chunks,
         env: None,
+        // TODO!
+        build_hash: "TODO".to_string(),
     };
 
     if !envs.is_empty() {
