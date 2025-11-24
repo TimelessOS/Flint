@@ -4,7 +4,7 @@ mod sources;
 
 use anyhow::{Context, Result, bail};
 use std::{
-    collections::BTreeMap,
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
     process::Command,
@@ -18,7 +18,7 @@ use crate::{
 use hash::calc_build_hash;
 use sources::get_sources;
 
-#[derive(serde::Deserialize, serde::Serialize, Clone, Hash)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 struct BuildManifest {
     /// ID of this package, the main alias
     id: String,
@@ -46,11 +46,10 @@ struct BuildManifest {
     /// Useful for SDKs.
     sdks: Option<Vec<String>>,
     /// RUNTIME environment variables
-    /// This is a `BTreeMap` due to `HashMap` not having the `hash` trait.
-    env: Option<BTreeMap<String, String>>,
+    env: Option<HashMap<String, String>>,
 }
 
-#[derive(serde::Deserialize, serde::Serialize, Clone, Hash)]
+#[derive(serde::Deserialize, serde::Serialize, Clone)]
 struct Source {
     /// Should either be git, tar or local
     kind: String,
@@ -199,7 +198,7 @@ fn include_all(
     build_dir: &Path,
     repo_path: &Path,
     chunk_store_path: &Path,
-    envs: &mut BTreeMap<String, String>,
+    envs: &mut HashMap<String, String>,
 ) -> Result<()> {
     for dependency in packages {
         let result = include(
@@ -224,7 +223,7 @@ fn include(
     path_to_include_at: &Path,
     repo_path: &Path,
     chunk_store_path: &Path,
-) -> Result<BTreeMap<String, String>> {
+) -> Result<HashMap<String, String>> {
     let dependency_build_manifest_path = search_path.join(dependency);
     let dependency_build_manifest: BuildManifest =
         serde_yaml::from_str(&fs::read_to_string(dependency_build_manifest_path)?)?;
