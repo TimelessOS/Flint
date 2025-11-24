@@ -6,13 +6,13 @@ use ed25519_dalek::{
         spki::der::pem::LineEnding,
     },
 };
-use rand_core::{OsRng, UnwrapErr};
 use std::{
     fs::{self, create_dir_all},
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 
+use super::generate_signing_key;
 use crate::config::get_config_dir;
 
 /// Returns private key, generating it if necessary
@@ -24,8 +24,7 @@ pub fn get_private_key(config_path: Option<&Path>) -> Result<SigningKey> {
     }
 
     if !path.exists() {
-        let mut csprng = UnwrapErr(OsRng);
-        let signing_key = SigningKey::generate(&mut csprng);
+        let signing_key = generate_signing_key();
 
         let pem = signing_key
             .to_pkcs8_pem(LineEnding::LF)
