@@ -44,6 +44,8 @@ enum Command {
     Build {
         build_manifest_path: PathBuf,
         repo_name: String,
+        #[arg(long, short)]
+        force: bool,
     },
     /// Install a package
     Install {
