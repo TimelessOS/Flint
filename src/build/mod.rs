@@ -81,79 +81,54 @@ pub async fn build(
     let repo_manifest =
         repo::read_manifest(repo_path).with_context(|| "The target Repostiory does not exist")?;
 
-    let build_manifest_parent = &build_manifest_path
+    let search_path = &build_manifest_path
         .parent()
         .unwrap_or_else(|| Path::new("/"));
 
     if let Some(sources) = build_manifest.sources {
-        get_sources(build_dir.path(), build_manifest_parent, &sources).await?;
+        get_sources(build_dir.path(), search_path, &sources).await?;
     }
 
     let mut envs = build_manifest.env.unwrap_or_default();
 
     if let Some(packages) = &build_manifest.include {
-        for dependency in packages {
-            let result = include(
-                build_manifest_parent,
-                dependency,
-                build_dir.path(),
-                repo_path,
-                chunk_store_path,
-            )?;
-
-            envs.extend(result);
-        }
+        include_all(
+            packages,
+            search_path,
+            build_dir.path(),
+            repo_path,
+            chunk_store_path,
+            &mut envs,
+        )?;
     }
 
     if let Some(packages) = &build_manifest.sdks {
-        for dependency in packages {
-            let result = include(
-                build_manifest_parent,
-                dependency,
-                build_dir.path(),
-                repo_path,
-                chunk_store_path,
-            )?;
-
-            envs.extend(result);
-        }
+        include_all(
+            packages,
+            search_path,
+            build_dir.path(),
+            repo_path,
+            chunk_store_path,
+            &mut envs,
+        )?;
     }
 
     if let Some(script) = build_manifest.build_script {
-        let script_path = build_manifest_parent.join(script);
-
-        let result = Command::new("sh")
-            .arg("-c")
-            .arg(script_path)
-            .current_dir(build_dir.path())
-            .status()?;
-
-        if !result.success() {
-            bail!("Build script failed.")
-        }
+        run_script(build_dir.path(), build_manifest_path, &script)
+            .with_context(|| "build_script")?;
     }
 
     let out_dir = build_dir.path().join(&build_manifest.directory);
 
     if let Some(script) = build_manifest.post_script {
-        let script_path = build_manifest_parent.join(script);
-
-        let result = Command::new("sh")
-            .arg("-c")
-            .arg(script_path)
-            .current_dir(&out_dir)
-            .status()?;
-
-        if !result.success() {
-            bail!("Build script failed.")
-        }
+        run_script(&out_dir, build_manifest_path, &script).with_context(|| "post_script")?;
     }
 
     let mut included_chunks = Vec::new();
     if let Some(packages) = &build_manifest.include {
         for dependency in packages {
             include(
-                build_manifest_parent,
+                search_path,
                 dependency,
                 &out_dir,
                 repo_path,
@@ -186,14 +161,39 @@ pub async fn build(
     Ok(package_manifest)
 }
 
+fn include_all(
+    packages: &Vec<String>,
+    search_path: &Path,
+    build_dir: &Path,
+    repo_path: &Path,
+    chunk_store_path: &Path,
+    envs: &mut BTreeMap<String, String>,
+) -> Result<()> {
+    for dependency in packages {
+        let result = include(
+            search_path,
+            dependency,
+            build_dir,
+            repo_path,
+            chunk_store_path,
+        )?;
+
+        envs.extend(result);
+    }
+
+    Ok(())
+}
+
+/// This requires the dependency to be build first
+// Perhaps a future improvement would be to recursively build if not already built? (TODO)
 fn include(
-    build_manifest_parent: &Path,
+    search_path: &Path,
     dependency: &str,
     path_to_include_at: &Path,
     repo_path: &Path,
     chunk_store_path: &Path,
 ) -> Result<BTreeMap<String, String>> {
-    let dependency_build_manifest_path = build_manifest_parent.join(dependency);
+    let dependency_build_manifest_path = search_path.join(dependency);
     let dependency_build_manifest: BuildManifest =
         serde_yaml::from_str(&fs::read_to_string(dependency_build_manifest_path)?)?;
     let repo_manifest = read_manifest(repo_path)?;
@@ -206,4 +206,21 @@ fn include(
     )?;
 
     Ok(dependency_manifest.env.unwrap_or_default())
+}
+
+/// Runs a script (typically `post_script` or `build_script`)
+fn run_script(cwd: &Path, search_path: &Path, script: &Path) -> Result<()> {
+    let script_path = search_path.join(script);
+
+    let result = Command::new("sh")
+        .arg("-c")
+        .arg(script_path)
+        .current_dir(cwd)
+        .status()?;
+
+    if !result.success() {
+        bail!("Build script failed.")
+    }
+
+    Ok(())
 }
