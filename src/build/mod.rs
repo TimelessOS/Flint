@@ -1,4 +1,5 @@
 pub mod bundle;
+pub mod hash;
 mod sources;
 
 use anyhow::{Context, Result, bail};
@@ -11,10 +12,11 @@ use std::{
 use temp_dir::TempDir;
 
 use crate::{
-    build::sources::get_sources,
     chunks::{load_tree, save_tree},
     repo::{self, Metadata, PackageManifest, get_package, insert_package, read_manifest},
 };
+use hash::calc_build_hash;
+use sources::get_sources;
 
 #[derive(serde::Deserialize, serde::Serialize, Clone, Hash)]
 struct BuildManifest {
@@ -72,6 +74,38 @@ pub async fn build(
     config_path: Option<&Path>,
     chunk_store_path: &Path,
 ) -> Result<PackageManifest> {
+    let repo = read_manifest(repo_path)?;
+    let build_manifest: BuildManifest =
+        serde_yaml::from_str(&fs::read_to_string(build_manifest_path)?)?;
+
+    if let Ok(package) = get_package(&repo, &build_manifest.id) {
+        let next_build_hash = calc_build_hash(build_manifest_path, repo_path)?;
+        if package.build_hash == next_build_hash {
+            return Ok(package);
+        }
+    }
+
+    force_build(
+        build_manifest_path,
+        repo_path,
+        config_path,
+        chunk_store_path,
+    )
+    .await
+}
+
+/// Builds and inserts a package into a Repository from a `build_manifest`
+///
+/// # Errors
+///
+/// - Filesystem (Out of Space, Permissions)
+/// - Build Script Failure
+pub async fn force_build(
+    build_manifest_path: &Path,
+    repo_path: &Path,
+    config_path: Option<&Path>,
+    chunk_store_path: &Path,
+) -> Result<PackageManifest> {
     let build_dir = TempDir::new()?;
     let build_manifest_path = &build_manifest_path.canonicalize()?;
 
@@ -114,14 +148,13 @@ pub async fn build(
     }
 
     if let Some(script) = build_manifest.build_script {
-        run_script(build_dir.path(), build_manifest_path, &script)
-            .with_context(|| "build_script")?;
+        run_script(build_dir.path(), search_path, &script).with_context(|| "build_script")?;
     }
 
     let out_dir = build_dir.path().join(&build_manifest.directory);
 
     if let Some(script) = build_manifest.post_script {
-        run_script(&out_dir, build_manifest_path, &script).with_context(|| "post_script")?;
+        run_script(&out_dir, search_path, &script).with_context(|| "post_script")?;
     }
 
     let mut included_chunks = Vec::new();
@@ -148,8 +181,7 @@ pub async fn build(
         metadata: build_manifest.metadata,
         chunks: included_chunks,
         env: None,
-        // TODO!
-        build_hash: "TODO".to_string(),
+        build_hash: calc_build_hash(build_manifest_path, repo_path)?,
     };
 
     if !envs.is_empty() {
