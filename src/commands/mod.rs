@@ -32,12 +32,14 @@ pub async fn main_commands(
         Command::Build {
             build_manifest_path,
             repo_name,
+            force,
         } => {
             build_cmd(
                 base_path,
                 &repo_name,
                 &build_manifest_path,
                 chunk_store_path,
+                force,
             )
             .await?;
         }
