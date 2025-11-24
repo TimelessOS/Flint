@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{collections::HashMap, path::PathBuf};
 
 use crate::chunks::{Chunk, HashKind};
 
@@ -20,13 +20,13 @@ pub struct PackageManifest {
     pub chunks: Vec<Chunk>,
     pub commands: Vec<PathBuf>,
     /// Runtime environment variables
-    pub env: Option<BTreeMap<String, String>>,
+    pub env: Option<HashMap<String, String>>,
     #[serde(default = "build_hash_default")]
     pub build_hash: String,
 }
 
 /// All of these are user visible, and should carry no actual weight.
-#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(serde::Deserialize, serde::Serialize, Debug, Clone, PartialEq, Eq)]
 pub struct Metadata {
     pub title: Option<String>,
     pub description: Option<String>,
