@@ -22,7 +22,7 @@ ed25519-dalek = { version = "=3.0.0-pre.1", features = [
     "signature",
 ] }
 rand_core = { version = "0.9.3", features = ["os_rng"] }
-reqwest = { version = "0.12.23", optional = true, default-features = false, features = [
+reqwest = { version = "0.12.24", optional = true, default-features = false, features = [
     "http2",
     "rustls-tls",
     "gzip",
