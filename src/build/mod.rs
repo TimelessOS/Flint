@@ -13,7 +13,8 @@ use temp_dir::TempDir;
 
 use crate::{
     chunks::{load_tree, save_tree},
-    repo::{self, Metadata, PackageManifest, get_package, insert_package, read_manifest},
+    crypto::key::{get_private_key, serialize_verifying_key},
+    repo::{Metadata, PackageManifest, get_package, insert_package, read_manifest},
 };
 use hash::calc_build_hash;
 use sources::get_sources;
@@ -84,6 +85,13 @@ pub async fn build(
         }
     }
 
+    let our_public_key = serialize_verifying_key(get_private_key(None)?.verifying_key())?;
+    if repo.public_key != our_public_key {
+        bail!(
+            "You do not have the correct signing key to resign this Repository.\nIf you are certain, use --force, but be aware you will not be able to update this Repository from the remote source again."
+        );
+    }
+
     force_build(
         build_manifest_path,
         repo_path,
@@ -112,7 +120,7 @@ pub async fn force_build(
         serde_yaml::from_str(&fs::read_to_string(build_manifest_path)?)?;
 
     let repo_manifest =
-        repo::read_manifest(repo_path).with_context(|| "The target Repostiory does not exist")?;
+        read_manifest(repo_path).with_context(|| "The target Repostiory does not exist")?;
 
     let search_path = &build_manifest_path
         .parent()
