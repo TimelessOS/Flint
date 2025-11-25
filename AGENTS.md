@@ -2,18 +2,13 @@
 
 ## Build/Test Commands
 - **Build**: `cargo build --verbose`
-- **Release build**: `cargo build --release`
-- **Test all**: `cargo test --verbose`
-- **Test with features**: `cargo test --verbose --all-features`
-- **Single test**: `cargo test <test_name>` or `cargo test <test_name> -- --nocapture`
+- **Test**: `cargo test --verbose --all-features`
 - **Lint**: `cargo clippy --verbose --all-features`
 
 ## Code Style Guidelines
 
 ### Rust Edition & Linting
 - Use Rust 2024 edition
-- Strict clippy rules: all/correctness/suspicious/perf/complexity/style/pedantic/nursery
-- `unsafe_code = "forbid"`, `unused_imports = "deny"`
 
 ### Error Handling
 - Use `anyhow::Result<T>` for all functions
@@ -26,15 +21,7 @@
 - Use feature flags: `#[cfg(feature = "network")]`
 - Prefer explicit imports over glob imports
 
-### Naming Conventions
-- Functions/variables: `snake_case`
-- Types/structs/enums: `PascalCase`
-- Constants: `SCREAMING_SNAKE_CASE`
-- Modules: `snake_case`
-
 ### Code Patterns
-- Use `#[derive(Debug, Clone, PartialEq)]` for data types
-- Async functions: `#[tokio::main]` for main, regular `async fn` elsewhere
 - CLI: Use `clap` with derive macros for commands
 - Serialization: Use `serde` with YAML format
 - Documentation: Comprehensive doc comments with error descriptions
