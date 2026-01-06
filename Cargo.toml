@@ -30,7 +30,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_yaml = "0.9.34"
 tar = "0.4.44"
 tokio = { version = "1.49.0", features = ["macros", "rt-multi-thread"] }
-tokio-stream = { version = "0.1.17", features = ["sync"] }
+tokio-stream = { version = "0.1.18", features = ["sync"] }
 temp-dir = "0.1.16"
 walkdir = "2.5.0"
 dialoguer = { version = "0.12.0" }
